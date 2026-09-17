@@ -104,6 +104,7 @@ import {
   resolveActiveIconSkins,
   type ThemeProfile
 } from "@/lib/theme-types";
+import { getReadableOnColor, hexToRgbChannels } from "@/lib/color-utils";
 import { GRID_COLS, GRID_ROWS, WIDGET_SIZE_CELLS, WIDGET_CATALOG, type WidgetInstance, type WidgetType } from "@/lib/widget-types";
 import { buildOccupancyGrid, canPlaceWidget, placeWidget, createDefaultWidgets, loadWidgets, saveWidgets, loadDIYTemplates, saveDIYTemplates } from "@/lib/widget-storage";
 import {
@@ -1419,8 +1420,34 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
     for (const [key, value] of Object.entries(restOverrides)) {
       if (key.startsWith("--") && value) vars.push(`  ${key}: ${value};`);
     }
-    return `:root {\n${vars.join("\n")}\n}`;
-  }, [cssOverrides, resolvedFontFamily]);
+    const blocks: string[] = [`:root {\n${vars.join("\n")}\n}`];
+
+    // ── 全局主色调（Accent）：仅在用户选色后下发，作用域限定 .phone-shell，
+    //    不影响桌面端外壳工作台；文字反色由亮度自动计算后经变量给出。 ──
+    const accent = (draftTheme.accentColor || "").trim();
+    if (accent) {
+      const contrast = getReadableOnColor(accent);
+      const rgb = hexToRgbChannels(accent);
+      blocks.push(`.phone-shell {
+  --c-accent: ${accent};
+  --c-accent-rgb: ${rgb};
+  --c-accent-contrast: ${contrast};
+  --c-accent-soft: rgba(${rgb}, 0.14);
+  --c-icon-active: ${accent};
+  --c-action-blue: ${accent};
+}`);
+    }
+    return blocks.join("\n");
+  }, [cssOverrides, resolvedFontFamily, draftTheme.accentColor]);
+
+  // 同步日/夜间模式到 <html>：供移动端 overscroll / 安全区缝隙填黑使用。
+  // 画面内的反色由 .phone-shell[data-color-mode] 属性驱动（见 color-mode.css）。
+  useEffect(() => {
+    document.documentElement.dataset.colorMode = draftTheme.colorMode === "dark" ? "dark" : "light";
+    return () => {
+      delete document.documentElement.dataset.colorMode;
+    };
+  }, [draftTheme.colorMode]);
   const uploadedFontOverrideCSS = useMemo(() => {
     if (!fontDataUrl) return "";
     const family = `${themeFontFamily}, ${EMOJI_FONTS}`;
@@ -4153,6 +4180,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
               data-widget-effect={widgetEffect}
               data-glass-pass={glassPaintPass % 2}
               data-borders={draftTheme.enableGlobalBorder ? "on" : "off"}
+              data-color-mode={draftTheme.colorMode === "dark" ? "dark" : "light"}
               style={{
                 "--user-border-color": draftTheme.globalBorderColor,
                 "--desktop-outline-color": resolvedOutlineColor,

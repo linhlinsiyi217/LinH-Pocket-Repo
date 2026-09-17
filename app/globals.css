@@ -27,6 +27,8 @@
 @import "../styles/qa.css";
 /* Pearl Glass 珍珠玻璃设计系统（令牌已加 --pg- 前缀，不覆盖上面 @theme 的 Tailwind 令牌） */
 @import "../styles/pearl-glass.css";
+/* 全局日/夜间模式与主色调反色层（叠加在主题引擎之上，不破坏 data-* 主题） */
+@import "../styles/color-mode.css";
 
 @theme {
   /* 间距 (4px 基准) */

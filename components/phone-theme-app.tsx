@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import {
   AlertCircle,
   AppWindow,
+  Check,
   Code2,
   Download,
   LayoutGrid,
@@ -11,6 +12,7 @@ import {
   Plus,
   RotateCcw,
   Smartphone,
+  SunMoon,
   Type,
   Upload,
   Wallpaper,
@@ -18,6 +20,7 @@ import {
 import CSSSchemeBar from "@/components/ui/css-scheme-picker";
 import { GlassIcon } from "@/components/ui/glass-icon";
 import { normalizeThemeProfile, resolveActiveIconSkins, DEFAULT_THEME_PROFILE, type ThemeProfile } from "@/lib/theme-types";
+import { ACCENT_PRESETS } from "@/lib/color-utils";
 import type { DesktopIconId, IconId } from "@/lib/desktop-config";
 import { DOCK_DEFAULT, PAGE_1_DEFAULT, PAGE_2_DEFAULT, PAGE_3_DEFAULT, ICONS } from "@/lib/desktop-config";
 import type { DesktopFolderMap, DesktopIconLayout } from "@/lib/desktop-layout-storage";
@@ -61,6 +64,7 @@ import {
 
 type ThemeSection =
   | "menu"
+  | "display"
   | "palette"
   | "wallpaper"
   | "icons"
@@ -101,6 +105,10 @@ function IconChevronRight() {
 
 function IconPalette() {
   return <PaintBucket size={22} strokeWidth={1.75} />;
+}
+
+function IconDisplay() {
+  return <SunMoon size={22} strokeWidth={1.75} />;
 }
 
 function IconWallpaper() {
@@ -145,6 +153,7 @@ const MENU_ITEMS: Array<{
   color?: string;
   glow?: string;
 }> = [
+  { section: "display", icon: IconDisplay, label: "显示与颜色", desc: "日间 / 夜间 · 全局主色调", color: BINDING_ACCENTS.preset, glow: `color-mix(in srgb, ${BINDING_ACCENTS.preset} 35%, transparent)`, glass: "time-aware" },
   { section: "palette", icon: IconPalette, label: "主题色", desc: "调色板预设", color: BINDING_ACCENTS.preset, glow: `color-mix(in srgb, ${BINDING_ACCENTS.preset} 35%, transparent)`, glass: "palette" },
   { section: "wallpaper", icon: IconWallpaper, label: "壁纸", desc: "桌面背景", color: BINDING_ACCENTS.api, glow: `color-mix(in srgb, ${BINDING_ACCENTS.api} 35%, transparent)`, glass: "wallpaper" },
   { section: "icons", icon: IconGrid, label: "图标", desc: "应用图标", color: BINDING_ACCENTS.regex, glow: `color-mix(in srgb, ${BINDING_ACCENTS.regex} 35%, transparent)`, glass: "icons" },
@@ -161,7 +170,8 @@ const menuIconStyle = (color?: string): CSSProperties => ({
 } as CSSProperties);
 
 const SECTION_TITLES: Record<Exclude<ThemeSection, "menu">, string> = {
-  palette: "\u4E3B\u9898\u8272",
+  display: "显示与颜色",
+  palette: "主题色",
   wallpaper: "\u58C1\u7EB8",
   icons: "\u56FE\u6807",
   widgets: "\u684C\u9762\u7EC4\u4EF6",
@@ -170,7 +180,7 @@ const SECTION_TITLES: Record<Exclude<ThemeSection, "menu">, string> = {
   css: "CSS \u53D8\u91CF",
 };
 
-const THEME_SECTIONS = new Set<string>(["menu", "palette", "wallpaper", "icons", "widgets", "case", "text", "css"]);
+const THEME_SECTIONS = new Set<string>(["menu", "display", "palette", "wallpaper", "icons", "widgets", "case", "text", "css"]);
 
 function isThemeSection(value: string): value is ThemeSection {
   return THEME_SECTIONS.has(value);
@@ -283,6 +293,30 @@ export function PhoneThemeApp({
     <PageShell title={title} onBack={handleBack}>
         {section === "menu" ? (
           <div className="page-menu appearance-main-menu">
+            {/* 显示与颜色（日/夜间 + 全局主色调） */}
+            {(() => {
+              const displayItem = MENU_ITEMS.find(i => i.section === "display")!;
+              return (
+                <div>
+                  <h3 className="appearance-menu-section-title">Display</h3>
+                  <button
+                    className="app-card card-featured mt-2.5"
+                    type="button"
+                    onClick={() => setSection("display")}
+                  >
+                    <span className="card-icon card-icon-glass" style={{ color: "var(--c-icon-active)" }}>
+                      <IconDisplay />
+                    </span>
+                    <div className="card-featured-body">
+                      <div className="card-featured-label">{displayItem.label}</div>
+                      <div className="card-featured-desc">{displayItem.desc}</div>
+                    </div>
+                    <span className="card-featured-chevron"><IconChevronRight /></span>
+                  </button>
+                </div>
+              );
+            })()}
+
             {/* Section 1: 外观定制 — 2x2 card grid */}
             <div>
               <h3 className="appearance-menu-section-title">Appearance</h3>
@@ -434,6 +468,8 @@ export function PhoneThemeApp({
             iconSkins={iconSkins}
             wallpaperStyle={wallpaperStyle}
           />
+        ) : section === "display" ? (
+          <DisplayColorPage draft={draft} onDraftChange={onDraftChange} onApply={onApply} onNotice={onNotice} />
         ) : section === "palette" ? (
           <PalettePresetPage draft={draft} onDraftChange={onDraftChange} onApply={onApply} onNotice={onNotice} />
         ) : section === "css" ? (
@@ -678,6 +714,180 @@ function buildColor(hex: string, alpha: number): string {
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/* ══════════════════════════════════════════
+   Display & Color Page（日/夜间模式 + 全局主色调）
+   修改即实时预览（draft 直接驱动外壳），「应用」持久化。
+   不触碰 data-icon-effect / data-skinned / data-borders 主题引擎。
+   ══════════════════════════════════════════ */
+function DisplayColorPage({
+  draft,
+  onDraftChange,
+  onApply,
+  onNotice,
+}: {
+  draft: ThemeProfile;
+  onDraftChange: (next: ThemeProfile) => void;
+  onApply: (next: ThemeProfile) => Promise<void> | void;
+  onNotice: (text: string) => void;
+}) {
+  const isDark = draft.colorMode === "dark";
+  const currentAccent = draft.accentColor || "";
+
+  function commit(patch: Partial<ThemeProfile>) {
+    onDraftChange(normalizeThemeProfile({ ...draft, ...patch }));
+  }
+
+  function handleApply() {
+    const next = normalizeThemeProfile({ ...draft });
+    onApply(next);
+    onNotice("显示设置已应用");
+  }
+
+  function handleReset() {
+    const next = normalizeThemeProfile({ ...draft, colorMode: "light", accentColor: "" });
+    onDraftChange(next);
+    onApply(next);
+    onNotice("已恢复默认显示");
+  }
+
+  return (
+    <div className="theme-section-page" data-bottom-reserve>
+      <div className="flex flex-col gap-5">
+        {/* 模式切换 */}
+        <div>
+          <p className="ts-11 font-semibold mb-2 text-[var(--c-text-title)]">外观模式</p>
+          <div className="flex rounded-[16px] border border-[var(--c-card-border)] bg-[var(--c-input)] p-1">
+            {([
+              { key: "light", label: "日间" },
+              { key: "dark", label: "夜间" },
+            ] as const).map((opt) => {
+              const active = (isDark ? "dark" : "light") === opt.key;
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => commit({ colorMode: opt.key })}
+                  className="flex-1 h-9 rounded-[12px] ts-12 font-medium transition-all duration-200 active:scale-[0.97]"
+                  style={active ? {
+                    background: "var(--c-panel)",
+                    color: "var(--c-text-title)",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+                  } : {
+                    background: "transparent",
+                    color: "var(--c-text)",
+                  }}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 全局主色调 */}
+        <div>
+          <p className="ts-11 font-semibold mb-2 text-[var(--c-text-title)]">全局主色调</p>
+          <div className="grid grid-cols-5 gap-3">
+            {ACCENT_PRESETS.map((preset) => {
+              const selected = currentAccent.toUpperCase() === preset.value.toUpperCase();
+              const isAuto = preset.value === "";
+              return (
+                <button
+                  key={preset.name}
+                  type="button"
+                  onClick={() => commit({ accentColor: preset.value })}
+                  className="relative aspect-square rounded-full flex items-center justify-center transition-transform duration-200 active:scale-90"
+                  style={{
+                    background: isAuto
+                      ? "conic-gradient(from 210deg, #8e8e93, #c7c7cc, #48484a, #aeaeb2, #8e8e93)"
+                      : preset.value,
+                    boxShadow: selected
+                      ? "0 0 0 2.5px var(--c-page-body-bg), 0 0 0 5px var(--c-text-title)"
+                      : "inset 0 1px 1px rgba(255,255,255,0.35), 0 3px 8px rgba(0,0,0,0.12)",
+                  }}
+                  aria-label={preset.name}
+                >
+                  {selected && <Check size={15} strokeWidth={3} style={{ color: isAuto ? "#fff" : "var(--c-accent-contrast, #fff)" }} />}
+                </button>
+              );
+            })}
+
+            {/* 自定义取色 */}
+            <label
+              className="relative aspect-square rounded-full flex items-center justify-center cursor-pointer transition-transform duration-200 active:scale-90 overflow-hidden"
+              style={{
+                background: currentAccent && !ACCENT_PRESETS.some(p => p.value.toUpperCase() === currentAccent.toUpperCase())
+                  ? currentAccent
+                  : "conic-gradient(red, yellow, lime, aqua, blue, magenta, red)",
+                boxShadow: currentAccent && !ACCENT_PRESETS.some(p => p.value.toUpperCase() === currentAccent.toUpperCase())
+                  ? "0 0 0 2.5px var(--c-page-body-bg), 0 0 0 5px var(--c-text-title)"
+                  : "inset 0 1px 1px rgba(255,255,255,0.35), 0 3px 8px rgba(0,0,0,0.12)",
+              }}
+              aria-label="自定义主色"
+            >
+              {currentAccent && !ACCENT_PRESETS.some(p => p.value.toUpperCase() === currentAccent.toUpperCase()) && (
+                <Check size={15} strokeWidth={3} style={{ color: "var(--c-accent-contrast, #fff)" }} />
+              )}
+              <input
+                type="color"
+                value={currentAccent || "#0A84FF"}
+                onChange={(e) => commit({ accentColor: e.target.value.toUpperCase() })}
+                className="absolute inset-0 opacity-0 cursor-pointer"
+              />
+            </label>
+          </div>
+          <p className="ts-10 mt-2 font-mono text-[var(--c-text)]">
+            {currentAccent || "跟随默认"}
+          </p>
+        </div>
+
+        {/* 实时预览 */}
+        <div>
+          <p className="ts-11 font-semibold mb-2 text-[var(--c-text-title)]">实时预览</p>
+          <div className="flex items-center gap-3 rounded-2xl border border-[var(--c-card-border)] bg-[var(--c-card)] px-4 py-3">
+            <button type="button" className="ui-btn ui-btn-primary ts-11" onClick={(e) => e.preventDefault()}>
+              主按钮
+            </button>
+            <span className="ui-chip ts-11" data-selected>标签</span>
+            <label className="block w-10 h-[24px] relative shrink-0 ml-auto" onClick={(e) => e.preventDefault()}>
+              <span
+                className="absolute inset-0 rounded-[12px]"
+                style={{ background: currentAccent ? "var(--c-accent)" : "var(--c-success)" }}
+              />
+              <span
+                className="absolute w-5 h-5 bg-white rounded-full top-[2px] pointer-events-none"
+                style={{ left: 18, boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }}
+              />
+            </label>
+          </div>
+          <p className="ts-10 mt-2 leading-relaxed text-[var(--c-text)]">
+            文字与图标会根据日/夜间与主色自动反色，保证在任何背景上都清晰可读。
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 mt-5">
+        <button
+          type="button"
+          className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-[20px] border border-black/10 bg-white px-4 text-xs font-bold text-gray-800 shadow-sm transition-all hover:bg-gray-50 hover:shadow-md active:scale-95 focus:outline-none"
+          onClick={handleReset}
+        >
+          <RotateCcw size={15} strokeWidth={1.8} />
+          <span>恢复默认</span>
+        </button>
+        <button
+          type="button"
+          className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-[20px] bg-black px-4 text-xs font-bold text-white shadow-sm transition-all hover:bg-gray-800 hover:shadow-md active:scale-95 focus:outline-none"
+          onClick={handleApply}
+        >
+          <Check size={15} strokeWidth={1.8} />
+          <span>应用</span>
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function PalettePresetPage({

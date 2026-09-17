@@ -8,7 +8,7 @@
  *   彩色只允许出现在更新日志面板与更新弹窗。
  */
 
-export const APP_VERSION = "0.4.0";
+export const APP_VERSION = "0.5.0";
 
 export type ChangelogKind = "feature" | "fix" | "adjust" | "patch";
 
@@ -32,6 +32,15 @@ export const CHANGELOG_KIND_META: Record<ChangelogKind, { label: string; color: 
 
 /** 完整更新日志，新的在前。发版时在数组头部插入新版本，同时升 APP_VERSION。 */
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: "0.5.0",
+    date: "2026-09-18",
+    entries: [
+      { kind: "feature", text: "美化应用新增「显示与颜色」：一键切换日间 / 夜间模式，标题栏、卡片、弹窗、设置、长按菜单等界面自动反色，文字图标始终清晰" },
+      { kind: "feature", text: "新增全局主色调：8 种韩系预设色 + 自定义取色，按钮、高亮、开关、聊天气泡实时变色，并按亮度自动计算黑白反色" },
+      { kind: "adjust", text: "夜间模式下珍珠玻璃弹窗与设置卡片同步转为深色液态玻璃，桌面壁纸与图标皮肤等个性化主题完全不受影响" },
+    ],
+  },
   {
     version: "0.4.0",
     date: "2026-09-18",

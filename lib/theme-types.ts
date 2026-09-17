@@ -60,6 +60,9 @@ export type ThemeProfile = {
   enableGlobalShadows: boolean;
   enableGlobalBorder: boolean;
   globalBorderColor: string;
+  // 全局外观：主色调（"" = 跟随系统默认）与日/夜间模式
+  accentColor: string;
+  colorMode: "light" | "dark";
   updatedAt: string;
 };
 
@@ -185,6 +188,8 @@ export const DEFAULT_THEME_PROFILE: ThemeProfile = {
   enableGlobalShadows: true,
   enableGlobalBorder: false,
   globalBorderColor: "#000000",
+  accentColor: "",
+  colorMode: "light",
   updatedAt: new Date().toISOString()
 };
 
@@ -252,9 +257,28 @@ function normalizeIconScheme(raw: unknown): IconSkinScheme | null {
   };
 }
 
+/** 校验并归一化主色调为 #RRGGBB；空串/非法值返回 null（表示跟随默认）。 */
+function normalizeAccentHex(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const value = raw.trim();
+  if (!value) return null;
+  let hex = "";
+  const short = /^#([0-9a-fA-F]{3})$/;
+  const long = /^#([0-9a-fA-F]{6})$/;
+  const shortMatch = value.match(short);
+  if (shortMatch) {
+    hex = shortMatch[1].split("").map((ch) => ch + ch).join("");
+  } else {
+    const longMatch = value.match(long);
+    if (!longMatch) return null;
+    hex = longMatch[1];
+  }
+  return `#${hex.toUpperCase()}`;
+}
+
 function dedupeById<T extends { id: string }>(items: T[]): T[] {
-  const result: T[] = [];
   const seen = new Set<string>();
+  const result: T[] = [];
   for (const item of items) {
     if (!item.id || seen.has(item.id)) continue;
     seen.add(item.id);
@@ -363,6 +387,10 @@ export function normalizeThemeProfile(raw: unknown): ThemeProfile {
   base.enableGlobalShadows = typeof source.enableGlobalShadows === "boolean" ? source.enableGlobalShadows : true;
   base.enableGlobalBorder = typeof source.enableGlobalBorder === "boolean" ? source.enableGlobalBorder : false;
   base.globalBorderColor = typeof source.globalBorderColor === "string" ? source.globalBorderColor as string : "#000000";
+
+  // ── Global appearance: accent color + light/dark mode ──
+  base.accentColor = normalizeAccentHex(source.accentColor) ?? "";
+  base.colorMode = source.colorMode === "dark" ? "dark" : "light";
 
   // ── Migrate enableGlobalShadows → cssOverrides["--desktop-global-shadow"] ──
   if (!base.cssOverrides["--desktop-global-shadow"]) {
