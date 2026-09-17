@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * LinH Pocket 专属开屏动画（PROJECT_RULES.md 三-1）：
@@ -13,15 +13,19 @@ const BOOT_EXIT_MS = 320;
 
 export function BootSplash({ onFinish }: { onFinish?: () => void }) {
   const [leaving, setLeaving] = useState(false);
+  // 回调放进 ref：父组件水合完成会重渲染并产生新的 onFinish 内联函数，
+  // 若写进依赖会反复清空/重启定时器，极端情况下开屏永不结束。定时器只在挂载时建一次。
+  const onFinishRef = useRef(onFinish);
+  onFinishRef.current = onFinish;
 
   useEffect(() => {
     const exitTimer = window.setTimeout(() => setLeaving(true), BOOT_HOLD_MS);
-    const finishTimer = window.setTimeout(() => onFinish?.(), BOOT_HOLD_MS + BOOT_EXIT_MS);
+    const finishTimer = window.setTimeout(() => onFinishRef.current?.(), BOOT_HOLD_MS + BOOT_EXIT_MS);
     return () => {
       window.clearTimeout(exitTimer);
       window.clearTimeout(finishTimer);
     };
-  }, [onFinish]);
+  }, []);
 
   return (
     <main className="app-root splash-root">

@@ -284,11 +284,21 @@ a {
 }
 
 /* ── 开屏动画：纯黑底 + 玻璃 Logo 呼吸发光 ── */
-.boot-splash-shell {
+/* 用双类选择器（0,2,0）压过后置加载的 phone-shell.css 中 .phone-shell{background:#fff}，
+   否则白底会透出来导致开屏/锁屏整屏发白（白屏 Bug 根因）。 */
+.phone-shell.boot-splash-shell,
+.phone-shell.lock-screen-shell {
   padding: 0;
+  background: #000000 !important;
+}
+.boot-splash-shell::before,
+.lock-screen-shell::before { display: none; }
+/* 上滑过渡时外壳/边框缝隙也必须是黑的，不能露出白壳 */
+.app-root.splash-root .phone-shell-wrap,
+.app-root.splash-root .phone-case,
+.app-root.splash-root .phone-frame {
   background: #000000;
 }
-.boot-splash-shell::before { display: none; }
 
 .boot-splash {
   position: absolute;
@@ -300,6 +310,11 @@ a {
   gap: 30px;
   overflow: hidden;
   background: #000000;
+  /* 避开状态栏与底部横条 */
+  padding:
+    max(0px, env(safe-area-inset-top, 0px))
+    0
+    max(0px, env(safe-area-inset-bottom, 0px));
   opacity: 1;
   transition: opacity 0.32s ease;
 }
@@ -393,16 +408,15 @@ a {
 }
 
 /* ── 仿 iOS 锁屏 ── */
+/* 黑底由上方 .phone-shell.lock-screen-shell 双类规则强制（!important），
+   这里只放交互与布局，背景相关声明不要单独写（会被后置样式表白底覆盖）。 */
 .lock-screen-shell {
   position: relative;
-  padding: 0;
-  background: #000000;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
   overflow: hidden;
 }
-.lock-screen-shell::before { display: none; }
 
 .lock-screen-vignette {
   position: absolute;
@@ -419,6 +433,8 @@ a {
   display: flex;
   flex-direction: column;
   color: #ffffff;
+  /* 自身也涂黑：上滑过程中即使外壳背景有一丝遗漏也不会露白 */
+  background: #000000;
   padding:
     calc(env(safe-area-inset-top, 0px) + 10px)
     0
@@ -694,5 +710,17 @@ a {
   .update-dot-icon,
   .update-dot-row { animation: none; }
   .boot-splash-word { opacity: 1; }
+}
+
+/* ── 状态栏白边终局兜底 ──
+   部分安卓 WebView 不匹配 (hover:none)/(pointer:coarse)，导致 phone-shell.css
+   移动媒体查询里的黑底不生效。这里只按屏宽兜底：任何窄屏一律把视口根层涂黑，
+   PWA 全屏下系统状态栏区域透出的永远是纯黑。桌面宽屏（手机壳预览）不受影响。 */
+@media (max-width: 600px) {
+  html,
+  body,
+  #__next {
+    background-color: #000000 !important;
+  }
 }
 
