@@ -886,3 +886,80 @@ svg {
     animation-iteration-count: 1 !important;
   }
 }
+
+
+/* =========================================================
+   PROJECT APPLICATION LAYER（项目应用层，scoped）
+   非设计系统原语。仅作用于「设置主页 .settings-main-menu」内的共享卡片，
+   把卡片表面替换为 Pearl Glass 玻璃质感。
+   —— 不改动共享组件 components/ui/card-grid.tsx，也不改动全局
+   .app-card 样式，避免波及其它 App 页面（严格增量、只加不改）。
+   ========================================================= */
+
+.settings-main-menu .app-card,
+.settings-main-menu .settings-account-card {
+  background:
+    linear-gradient(
+      145deg,
+      rgba(248, 249, 251, 0.64),
+      rgba(232, 232, 237, 0.40)
+    );
+
+  backdrop-filter:
+    blur(var(--pg-blur-md))
+    saturate(138%);
+
+  -webkit-backdrop-filter:
+    blur(var(--pg-blur-md))
+    saturate(138%);
+
+  border: 1px solid var(--color-border-soft);
+
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.92),
+    inset 0 -1px 1px rgba(130, 140, 155, 0.05),
+    0 3px 8px rgba(70, 80, 95, 0.04),
+    0 14px 30px rgba(70, 80, 95, 0.08);
+
+  /* 替换原 transition: all，遵循设计系统「避免 transition: all」规范；
+     进场动画 cardSlideUp 不受影响，照常播放 */
+  transition:
+    transform var(--duration-normal) var(--ease-out-soft),
+    box-shadow var(--duration-normal) var(--ease-out-soft),
+    border-color var(--duration-normal) var(--ease-out-soft),
+    background var(--duration-normal) var(--ease-out-soft),
+    opacity var(--duration-fast) ease-out;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .settings-main-menu .app-card:hover,
+  .settings-main-menu .settings-account-card:hover {
+    transform: translateY(-1px);
+
+    border-color: rgba(255, 255, 255, 0.9);
+
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255, 255, 255, 0.72),
+        rgba(232, 232, 237, 0.48)
+      );
+
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.96),
+      inset 0 -1px 1px rgba(130, 140, 155, 0.05),
+      0 5px 10px rgba(70, 80, 95, 0.05),
+      0 18px 38px rgba(70, 80, 95, 0.1);
+  }
+}
+
+/* 物理按压缩放（开关行 .settings-toggle-card 自身有 !important 不缩放，保持例外） */
+.settings-main-menu .app-card:active {
+  transform: scale(0.965);
+}
+
+/* 账号卡原 :active 为 scale(0.92) !important，统一为设计系统 0.965 */
+.settings-main-menu .settings-account-card:active {
+  transform: scale(0.965) !important;
+  opacity: 1 !important;
+}

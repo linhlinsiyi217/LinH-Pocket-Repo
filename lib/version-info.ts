@@ -8,7 +8,7 @@
  *   彩色只允许出现在更新日志面板与更新弹窗。
  */
 
-export const APP_VERSION = "0.2.1";
+export const APP_VERSION = "0.2.2";
 
 export type ChangelogKind = "feature" | "fix" | "adjust" | "patch";
 
@@ -32,6 +32,13 @@ export const CHANGELOG_KIND_META: Record<ChangelogKind, { label: string; color: 
 
 /** 完整更新日志，新的在前。发版时在数组头部插入新版本，同时升 APP_VERSION。 */
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: "0.2.2",
+    date: "2026-09-18",
+    entries: [
+      { kind: "adjust", text: "设置页卡片全面改用珍珠玻璃质感，悬停微浮起、按压物理回弹更细腻" },
+    ],
+  },
   {
     version: "0.2.1",
     date: "2026-09-18",
