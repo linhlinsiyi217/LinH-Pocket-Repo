@@ -8,7 +8,7 @@
  *   彩色只允许出现在更新日志面板与更新弹窗。
  */
 
-export const APP_VERSION = "0.2.2";
+export const APP_VERSION = "0.3.0";
 
 export type ChangelogKind = "feature" | "fix" | "adjust" | "patch";
 
@@ -32,6 +32,15 @@ export const CHANGELOG_KIND_META: Record<ChangelogKind, { label: string; color: 
 
 /** 完整更新日志，新的在前。发版时在数组头部插入新版本，同时升 APP_VERSION。 */
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: "0.3.0",
+    date: "2026-09-18",
+    entries: [
+      { kind: "adjust", text: "主屏幕「添加小组件」面板重做：珍珠玻璃底板、发丝亮边与柔和投影，列表项按压弹性回弹" },
+      { kind: "adjust", text: "主屏幕页面指示点改为中性珍珠白，去除旧的偏绿色" },
+      { kind: "adjust", text: "非玻璃质感主题下的 Dock 底板升级为珍珠毛玻璃（玻璃/皮肤/描边主题保持原样）" },
+    ],
+  },
   {
     version: "0.2.2",
     date: "2026-09-18",
