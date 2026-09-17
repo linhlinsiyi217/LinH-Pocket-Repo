@@ -1085,27 +1085,28 @@
 
   :root {
     --phone-screen-width: 100vw;
-    --phone-screen-height: 100lvh;
+    /* 动态视口：visualViewport 实时写入 --vh，安卓工具栏伸缩不留白 */
+    --phone-screen-height: calc(var(--vh, 1lvh) * 100);
   }
 
   html,
   body {
     overflow: hidden;
     width: 100%;
-    height: 100lvh;
-    /* 安卓 PWA 状态栏无法隐藏时，把视口外漏的边缝统一涂黑，消除顶部白条 */
-    background: #000000;
+    height: calc(var(--vh, 1lvh) * 100);
+    /* 背景层：铺满全屏、不加 padding，壁纸/底色直接延伸到系统栏底下 */
+    background: var(--c-page-body-bg);
   }
 
   .app-root {
     width: 100vw;
-    height: 100lvh;
+    height: calc(var(--vh, 1lvh) * 100);
     padding: 0;
     display: flex;
     justify-content: flex-start;
     align-items: flex-start;
     overflow: hidden;
-    background: #000000;
+    background: var(--c-page-body-bg);
   }
 
   .phone-shell-wrap {
@@ -1155,14 +1156,14 @@
 
   .app-root.splash-root {
     width: 100vw;
-    height: 100lvh;
+    height: calc(var(--vh, 1lvh) * 100);
     margin: 0;
     padding: 0;
     display: flex;
     align-items: flex-start;
     justify-content: flex-start;
     overflow: hidden;
-    background: #000000;
+    background: var(--c-page-body-bg);
   }
 
   .splash-shell-wrap {

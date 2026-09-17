@@ -5,12 +5,13 @@ import { useEffect, useState } from "react";
 import { AccountGate } from "@/components/auth/account-gate";
 import { BootSplash } from "@/components/boot-splash";
 import { CloudBackupScheduler } from "@/components/cloud-backup-scheduler";
-import { LockScreen } from "@/components/lock-screen";
+import IOSKoreanLockScreen from "@/components/ios-korean-lock-screen";
 import { RealityBridgeScheduler } from "@/components/reality-bridge-scheduler";
 import { MediaMaintenanceScheduler } from "@/components/media-maintenance-scheduler";
 import { DesktopShell } from "./desktop-shell";
 import { OfflinePushRevampAnnouncement } from "./offline-push-revamp-announcement";
 import { UpdateNotice } from "./update-notice";
+import { useViewportVh } from "@/lib/use-viewport-vh";
 import { MusicProvider } from "@/lib/music-context";
 import { hydrateKvDb, isKvHydrated } from "@/lib/kv-db";
 import { getThemeAssetMap, readThemeProfile } from "@/lib/theme-storage";
@@ -202,6 +203,8 @@ async function prepareDesktopThemeForFirstPaint(): Promise<PreparedDesktopTheme>
 }
 
 export function MainApp() {
+  // 全面屏动态视口：visualViewport 实时写入 --vh，禁止任何硬编码状态栏高度
+  useViewportVh();
   const [preparedDesktopTheme, setPreparedDesktopTheme] = useState<PreparedDesktopTheme | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [phase, setPhase] = useState<BootPhase>("boot");
@@ -283,7 +286,7 @@ export function MainApp() {
       {phase === "boot" && (
         <BootSplash onFinish={() => setPhase(hasPendingMcpOAuthCallback() ? "home" : "lock")} />
       )}
-      {phase === "lock" && <LockScreen onUnlock={() => setPhase("home")} />}
+      {phase === "lock" && <IOSKoreanLockScreen onUnlock={() => setPhase("home")} />}
       {phase === "home" && (
         hydrated ? (
           <main className="app-root">
@@ -300,7 +303,7 @@ export function MainApp() {
             </MusicProvider>
           </main>
         ) : (
-          <main className="app-root" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100dvh", background: "#000000" }}>
+          <main className="app-root" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "calc(var(--vh, 1dvh) * 100)", background: "var(--c-page-body-bg, #f8f7f2)" }}>
             <span className="home-prepare-dot" aria-label={TEXT.loading} />
           </main>
         )

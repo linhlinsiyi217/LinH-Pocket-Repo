@@ -284,16 +284,14 @@ a {
 }
 
 /* ── 开屏动画：纯黑底 + 玻璃 Logo 呼吸发光 ── */
-/* 用双类选择器（0,2,0）压过后置加载的 phone-shell.css 中 .phone-shell{background:#fff}，
-   否则白底会透出来导致开屏/锁屏整屏发白（白屏 Bug 根因）。 */
-.phone-shell.boot-splash-shell,
-.phone-shell.lock-screen-shell {
+/* 双类选择器（0,2,0）压过后置加载的 phone-shell.css 中 .phone-shell{background:#fff}，
+   让开屏纯黑壁纸完整铺满（这是开屏自身的背景层，不是状态栏涂黑补丁）。 */
+.phone-shell.boot-splash-shell {
   padding: 0;
   background: #000000 !important;
 }
-.boot-splash-shell::before,
-.lock-screen-shell::before { display: none; }
-/* 上滑过渡时外壳/边框缝隙也必须是黑的，不能露出白壳 */
+.boot-splash-shell::before { display: none; }
+/* 开屏外壳/边框缝隙与壁纸同色，全面屏下延伸到系统栏底下，不露底色 */
 .app-root.splash-root .phone-shell-wrap,
 .app-root.splash-root .phone-case,
 .app-root.splash-root .phone-frame {
@@ -407,123 +405,67 @@ a {
   100% { opacity: 1; transform: translateY(0); }
 }
 
-/* ── 仿 iOS 锁屏 ── */
-/* 黑底由上方 .phone-shell.lock-screen-shell 双类规则强制（!important），
-   这里只放交互与布局，背景相关声明不要单独写（会被后置样式表白底覆盖）。 */
-.lock-screen-shell {
-  position: relative;
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
-  overflow: hidden;
+/* ── iOS 韩系锁屏：真机全面屏适配（分层方案） ──
+   设计稿默认是「桌面预览」：居中 390×820 圆角卡片 + 外围留白，桌面端保持原样。
+   手机窄屏（PWA/浏览器）下：
+   - 背景层：最外层与卡片壁纸铺满整个动态视口，无 padding、无圆角，
+     壁纸直接延伸到状态栏/手势条底下；
+   - 内容层：状态栏、灵动岛、底部按钮、通知、横条提示分别加 env(safe-area-inset-*)
+     避让刘海/灵动岛/底部手势区，不写死任何像素高度。 */
+@media (max-width: 600px) {
+  .ios-lock-root {
+    display: block;
+    width: 100vw;
+    /* 动态视口：安卓工具栏伸缩实时跟随，杜绝底部留白 */
+    height: calc(var(--vh, 1dvh) * 100);
+    min-height: calc(var(--vh, 1dvh) * 100);
+    padding: 0;
+    overflow: hidden;
+    /* 背景层延伸到系统栏底下 */
+    background: #e7ebf0;
+  }
+
+  .ios-lock-card {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    max-width: 100%;
+    height: calc(var(--vh, 1dvh) * 100);
+    border-radius: 0;
+    box-shadow: none;
+    --tw-ring-shadow: 0 0 #0000;
+  }
+
+  /* 内容层：顶部信息避让安全区（时钟区块在文档流里，会随 header 增高自然下移） */
+  .ios-lock-statusbar {
+    height: auto;
+    min-height: 54px;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 8px);
+  }
+  .ios-lock-island {
+    top: calc(env(safe-area-inset-top, 0px) + 13px);
+  }
+
+  /* 底部内容避让手势横条 */
+  .ios-lock-bottom {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 46px);
+  }
+  .ios-lock-notifications {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 138px);
+  }
+  .ios-lock-swipe {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 22px);
+  }
 }
 
-.lock-screen-vignette {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(120% 70% at 50% 0%, rgba(255, 255, 255, 0.045) 0%, transparent 55%),
-    radial-gradient(120% 80% at 50% 100%, rgba(255, 255, 255, 0.03) 0%, transparent 60%);
+/* 内部 “Unlocked” 兜底页在真机同样铺满动态视口 */
+@media (max-width: 600px) {
+  .ios-lock-unlocked {
+    min-height: calc(var(--vh, 1dvh) * 100);
+  }
 }
 
-.lock-screen-layer {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  color: #ffffff;
-  /* 自身也涂黑：上滑过程中即使外壳背景有一丝遗漏也不会露白 */
-  background: #000000;
-  padding:
-    calc(env(safe-area-inset-top, 0px) + 10px)
-    0
-    calc(env(safe-area-inset-bottom, 0px) + 14px);
-  will-change: transform, opacity;
-}
-
-.lock-screen-status {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 22px;
-  height: 24px;
-  flex: 0 0 auto;
-}
-
-.lock-screen-center {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  min-height: 0;
-}
-.lock-screen-lock {
-  margin-bottom: 16px;
-  opacity: 0.85;
-  animation: lockIconIn 0.9s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
-}
-.lock-screen-date {
-  font-size: 15px;
-  font-weight: 400;
-  color: rgba(255, 255, 255, 0.78);
-  letter-spacing: 1px;
-}
-.lock-screen-clock {
-  font-size: clamp(80px, 23vw, 94px);
-  font-weight: 300;
-  line-height: 1.04;
-  letter-spacing: 1px;
-  color: #ffffff;
-  font-variant-numeric: tabular-nums;
-  text-shadow: 0 2px 30px rgba(255, 255, 255, 0.12);
-}
-
-.lock-screen-bottom {
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 18px;
-}
-.lock-screen-hint {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-.lock-screen-chevron {
-  display: block;
-  opacity: 0.9;
-  animation: lockChevronFloat 1.8s ease-in-out infinite;
-}
-.lock-screen-chevron-dragged { animation-play-state: paused; }
-.lock-screen-hint-text {
-  font-size: 12.5px;
-  font-weight: 400;
-  color: rgba(255, 255, 255, 0.62);
-  letter-spacing: 2px;
-  padding-left: 2px;
-}
-.lock-screen-home-indicator {
-  width: 134px;
-  height: 5px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.88);
-}
-
-@keyframes lockChevronFloat {
-  0%, 100% { transform: translateY(3px); opacity: 0.55; }
-  50% { transform: translateY(-4px); opacity: 1; }
-}
-@keyframes lockIconIn {
-  0% { opacity: 0; transform: translateY(-10px) scale(0.8); }
-  100% { opacity: 0.85; transform: translateY(0) scale(1); }
-}
-
-/* ── 更新日志毛玻璃弹窗 ── */
+/* ── 更新日志弹窗（韩系高级玻璃拟态，与新锁屏同风格） ── */
 .update-overlay {
   position: fixed;
   inset: 0;
@@ -531,38 +473,39 @@ a {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 24px;
-  background: rgba(0, 0, 0, 0.48);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  animation: updateOverlayIn 0.25s ease both;
+  padding: 0 28px;
+  background: rgba(18, 21, 28, 0.34);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  animation: updateOverlayIn 0.3s ease both;
 }
 
 .update-dialog {
   position: relative;
-  width: min(88vw, 350px);
-  max-height: 80dvh;
+  width: min(86vw, 346px);
+  max-height: calc(var(--vh, 1dvh) * 100 - 110px);
   display: flex;
   flex-direction: column;
-  padding: 14px 18px 18px;
-  border-radius: 26px;
-  border: 0.5px solid rgba(255, 255, 255, 0.14);
+  padding: 14px 22px 20px;
+  border-radius: 30px;
+  border: 0.5px solid rgba(255, 255, 255, 0.78);
   background:
-    linear-gradient(160deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.03) 40%, rgba(255, 255, 255, 0.06)),
-    rgba(28, 28, 30, 0.78);
+    linear-gradient(165deg, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0.44) 46%, rgba(244, 247, 251, 0.55) 100%),
+    rgba(255, 255, 255, 0.56);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.18),
-    0 24px 60px rgba(0, 0, 0, 0.55);
-  animation: updateDialogIn 0.42s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+    inset 0 1px 1px rgba(255, 255, 255, 0.95),
+    inset 0 -1px 2px rgba(120, 132, 150, 0.08),
+    0 30px 80px rgba(40, 50, 66, 0.28);
+  animation: updateDialogIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
 }
 .update-dialog-handle {
   width: 38px;
   height: 4px;
-  margin: 2px auto 12px;
+  margin: 2px auto 16px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.28);
+  background: rgba(28, 33, 42, 0.16);
   flex: 0 0 auto;
 }
 .update-dialog-head {
@@ -570,40 +513,48 @@ a {
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  padding: 0 2px;
+  padding: 0 4px;
   flex: 0 0 auto;
 }
 .update-dialog-title {
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 600;
-  color: #ffffff;
-  letter-spacing: 0.5px;
+  color: #1c2028;
+  letter-spacing: -0.02em;
 }
 .update-dialog-version {
-  font-size: 12px;
+  font-size: 11.5px;
   font-family: "JetBrains Mono", ui-monospace, monospace;
-  color: rgba(255, 255, 255, 0.48);
+  color: rgba(28, 32, 40, 0.4);
+  letter-spacing: 0.02em;
 }
 .update-dialog-body {
-  margin-top: 14px;
+  margin-top: 18px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   flex: 1 1 auto;
   min-height: 0;
-  padding: 0 2px;
+  padding: 0 4px;
 }
-.update-release + .update-release { margin-top: 16px; }
+.update-release + .update-release {
+  margin-top: 22px;
+  padding-top: 20px;
+  border-top: 0.5px solid rgba(28, 33, 42, 0.1);
+}
 .update-release-meta {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 8px;
-  font-size: 12px;
-  color: #ffffff;
+  margin-bottom: 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #1c2028;
+  letter-spacing: -0.01em;
 }
 .update-release-date {
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(28, 32, 40, 0.38);
   font-size: 11px;
+  font-weight: 500;
 }
 .update-entry-list {
   list-style: none;
@@ -611,47 +562,70 @@ a {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 13px;
 }
 .update-entry {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: 10px;
 }
+/* 四色胶囊标签 + 微光扫过；色值由组件内联 style 注入，这里只管形态与动效 */
 .update-tag {
+  position: relative;
   flex: 0 0 auto;
   margin-top: 1px;
-  padding: 2px 8px;
-  border-radius: 7px;
+  padding: 3px 11px 3px 10px;
+  border-radius: 999px;
   border: 0.5px solid;
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 600;
-  line-height: 1.5;
-  letter-spacing: 0.5px;
+  line-height: 1.6;
+  letter-spacing: 0.08em;
+  overflow: hidden;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.7),
+    0 2px 8px rgba(60, 70, 86, 0.06);
+  white-space: nowrap;
+}
+.update-tag::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 28%,
+    rgba(255, 255, 255, 0.85) 50%,
+    transparent 72%
+  );
+  transform: translateX(-130%);
+  animation: updateTagSheen 3.4s ease-in-out infinite;
+  pointer-events: none;
 }
 .update-entry-text {
   font-size: 13px;
-  line-height: 1.55;
-  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.65;
+  letter-spacing: -0.01em;
+  color: rgba(28, 32, 40, 0.78);
 }
 .update-know-btn {
   flex: 0 0 auto;
-  margin-top: 16px;
-  height: 46px;
+  margin-top: 20px;
+  height: 48px;
   width: 100%;
   border: none;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.96);
-  color: #000000;
-  font-size: 15px;
+  background: #10131a;
+  color: #ffffff;
+  font-size: 14.5px;
   font-weight: 600;
-  letter-spacing: 1px;
+  letter-spacing: 0.06em;
   cursor: pointer;
-  transition: transform 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s ease;
+  box-shadow: 0 10px 26px rgba(16, 19, 26, 0.22);
+  transition: transform 0.24s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s ease;
 }
 .update-know-btn:active {
-  transform: scale(0.98);
-  opacity: 0.85;
+  transform: scale(0.96);
+  opacity: 0.88;
 }
 
 @keyframes updateOverlayIn {
@@ -659,8 +633,12 @@ a {
   to { opacity: 1; }
 }
 @keyframes updateDialogIn {
-  from { opacity: 0; transform: translateY(22px) scale(0.94); }
+  from { opacity: 0; transform: translateY(26px) scale(0.93); }
   to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes updateTagSheen {
+  0%, 62% { transform: translateX(-130%); }
+  100% { transform: translateX(130%); }
 }
 
 /* ── 白色拟态未读小圆点 ── */
@@ -704,23 +682,11 @@ a {
   .boot-splash-logo,
   .boot-splash-ring,
   .boot-splash-word,
-  .lock-screen-lock,
-  .lock-screen-chevron,
   .home-prepare-dot,
   .update-dot-icon,
-  .update-dot-row { animation: none; }
+  .update-dot-row,
+  .update-tag::after { animation: none; }
   .boot-splash-word { opacity: 1; }
-}
-
-/* ── 状态栏白边终局兜底 ──
-   部分安卓 WebView 不匹配 (hover:none)/(pointer:coarse)，导致 phone-shell.css
-   移动媒体查询里的黑底不生效。这里只按屏宽兜底：任何窄屏一律把视口根层涂黑，
-   PWA 全屏下系统状态栏区域透出的永远是纯黑。桌面宽屏（手机壳预览）不受影响。 */
-@media (max-width: 600px) {
-  html,
-  body,
-  #__next {
-    background-color: #000000 !important;
-  }
+  .update-tag::after { display: none; }
 }
 
