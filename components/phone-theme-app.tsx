@@ -20,7 +20,7 @@ import {
 import CSSSchemeBar from "@/components/ui/css-scheme-picker";
 import { GlassIcon } from "@/components/ui/glass-icon";
 import { normalizeThemeProfile, resolveActiveIconSkins, DEFAULT_THEME_PROFILE, type ThemeProfile } from "@/lib/theme-types";
-import { ACCENT_PRESETS } from "@/lib/color-utils";
+import { ColorPanel } from "./ui/color-panel";
 import type { DesktopIconId, IconId } from "@/lib/desktop-config";
 import { DOCK_DEFAULT, PAGE_1_DEFAULT, PAGE_2_DEFAULT, PAGE_3_DEFAULT, ICONS } from "@/lib/desktop-config";
 import type { DesktopFolderMap, DesktopIconLayout } from "@/lib/desktop-layout-storage";
@@ -786,61 +786,13 @@ function DisplayColorPage({
           </div>
         </div>
 
-        {/* 全局主色调 */}
+        {/* 全局主色调：面板式取色器（格线 / 光谱 / 滑杆 + 快捷预设） */}
         <div>
           <p className="ts-11 font-semibold mb-2 text-[var(--c-text-title)]">全局主色调</p>
-          <div className="grid grid-cols-5 gap-3">
-            {ACCENT_PRESETS.map((preset) => {
-              const selected = currentAccent.toUpperCase() === preset.value.toUpperCase();
-              const isAuto = preset.value === "";
-              return (
-                <button
-                  key={preset.name}
-                  type="button"
-                  onClick={() => commit({ accentColor: preset.value })}
-                  className="relative aspect-square rounded-full flex items-center justify-center transition-transform duration-200 active:scale-90"
-                  style={{
-                    background: isAuto
-                      ? "conic-gradient(from 210deg, #8e8e93, #c7c7cc, #48484a, #aeaeb2, #8e8e93)"
-                      : preset.value,
-                    boxShadow: selected
-                      ? "0 0 0 2.5px var(--c-page-body-bg), 0 0 0 5px var(--c-text-title)"
-                      : "inset 0 1px 1px rgba(255,255,255,0.35), 0 3px 8px rgba(0,0,0,0.12)",
-                  }}
-                  aria-label={preset.name}
-                >
-                  {selected && <Check size={15} strokeWidth={3} style={{ color: isAuto ? "#fff" : "var(--c-accent-contrast, #fff)" }} />}
-                </button>
-              );
-            })}
-
-            {/* 自定义取色 */}
-            <label
-              className="relative aspect-square rounded-full flex items-center justify-center cursor-pointer transition-transform duration-200 active:scale-90 overflow-hidden"
-              style={{
-                background: currentAccent && !ACCENT_PRESETS.some(p => p.value.toUpperCase() === currentAccent.toUpperCase())
-                  ? currentAccent
-                  : "conic-gradient(red, yellow, lime, aqua, blue, magenta, red)",
-                boxShadow: currentAccent && !ACCENT_PRESETS.some(p => p.value.toUpperCase() === currentAccent.toUpperCase())
-                  ? "0 0 0 2.5px var(--c-page-body-bg), 0 0 0 5px var(--c-text-title)"
-                  : "inset 0 1px 1px rgba(255,255,255,0.35), 0 3px 8px rgba(0,0,0,0.12)",
-              }}
-              aria-label="自定义主色"
-            >
-              {currentAccent && !ACCENT_PRESETS.some(p => p.value.toUpperCase() === currentAccent.toUpperCase()) && (
-                <Check size={15} strokeWidth={3} style={{ color: "var(--c-accent-contrast, #fff)" }} />
-              )}
-              <input
-                type="color"
-                value={currentAccent || "#0A84FF"}
-                onChange={(e) => commit({ accentColor: e.target.value.toUpperCase() })}
-                className="absolute inset-0 opacity-0 cursor-pointer"
-              />
-            </label>
-          </div>
-          <p className="ts-10 mt-2 font-mono text-[var(--c-text)]">
-            {currentAccent || "跟随默认"}
-          </p>
+          <ColorPanel
+            value={currentAccent}
+            onChange={(hex) => commit({ accentColor: hex })}
+          />
         </div>
 
         {/* 实时预览 */}

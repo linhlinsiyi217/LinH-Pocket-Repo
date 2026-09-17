@@ -8,7 +8,7 @@
  *   彩色只允许出现在更新日志面板与更新弹窗。
  */
 
-export const APP_VERSION = "0.6.0";
+export const APP_VERSION = "0.6.1";
 
 export type ChangelogKind = "feature" | "fix" | "adjust" | "patch";
 
@@ -32,6 +32,13 @@ export const CHANGELOG_KIND_META: Record<ChangelogKind, { label: string; color: 
 
 /** 完整更新日志，新的在前。发版时在数组头部插入新版本，同时升 APP_VERSION。 */
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: "0.6.1",
+    date: "2026-09-18",
+    entries: [
+      { kind: "adjust", text: "「显示与颜色」的主色调选择重做为面板式取色器：支持在颜色面板上长按拖动连续取色、轻点直选，提供格线 / 光谱 / 滑杆三种模式与实时 HEX 预览，原预设色保留为底部小色点快捷入口" },
+    ],
+  },
   {
     version: "0.6.0",
     date: "2026-09-18",

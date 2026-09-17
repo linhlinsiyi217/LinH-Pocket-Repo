@@ -74,3 +74,69 @@ export const ACCENT_PRESETS: Array<{ name: string; value: string }> = [
   { name: "青蓝", value: "#5AC8FA" },
   { name: "石墨", value: "#3B3F46" },
 ];
+
+/* ── HSV 取色支持（面板式取色器内部统一用 HSV，对外仍只收发 HEX） ── */
+
+export type Hsv = { h: number; s: number; v: number };
+
+export function rgbToHex({ r, g, b }: Rgb): string {
+  const to2 = (n: number) => Math.round(n).toString(16).padStart(2, "0");
+  return `#${to2(r)}${to2(g)}${to2(b)}`.toUpperCase();
+}
+
+export function rgbToHsv({ r, g, b }: Rgb): Hsv {
+  const rn = r / 255;
+  const gn = g / 255;
+  const bn = b / 255;
+  const max = Math.max(rn, gn, bn);
+  const min = Math.min(rn, gn, bn);
+  const delta = max - min;
+
+  let h = 0;
+  if (delta !== 0) {
+    if (max === rn) h = ((gn - bn) / delta) % 6;
+    else if (max === gn) h = (bn - rn) / delta + 2;
+    else h = (rn - gn) / delta + 4;
+    h *= 60;
+    if (h < 0) h += 360;
+  }
+  const s = max === 0 ? 0 : delta / max;
+  return { h, s, v: max };
+}
+
+export function hsvToRgb({ h, s, v }: Hsv): Rgb {
+  const c = v * s;
+  const hp = (((h % 360) + 360) % 360) / 60;
+  const x = c * (1 - Math.abs((hp % 2) - 1));
+  let r1 = 0;
+  let g1 = 0;
+  let b1 = 0;
+
+  if (hp >= 0 && hp < 1) [r1, g1, b1] = [c, x, 0];
+  else if (hp < 2) [r1, g1, b1] = [x, c, 0];
+  else if (hp < 3) [r1, g1, b1] = [0, c, x];
+  else if (hp < 4) [r1, g1, b1] = [0, x, c];
+  else if (hp < 5) [r1, g1, b1] = [x, 0, c];
+  else [r1, g1, b1] = [c, 0, x];
+
+  const m = v - c;
+  return {
+    r: (r1 + m) * 255,
+    g: (g1 + m) * 255,
+    b: (b1 + m) * 255,
+  };
+}
+
+export function hexToHsv(input: string): Hsv | null {
+  const rgb = parseHexColor(input);
+  return rgb ? rgbToHsv(rgb) : null;
+}
+
+export function hsvToHex(hsv: Hsv): string {
+  return rgbToHex(hsvToRgb(hsv));
+}
+
+/** 当前色相在「满饱和、满明度」下的纯色，用于渐变条取色停止点。 */
+export function hueToPureHex(h: number): string {
+  return hsvToHex({ h, s: 1, v: 1 });
+}
