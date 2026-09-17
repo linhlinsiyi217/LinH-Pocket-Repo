@@ -826,9 +826,17 @@ a {
     background: #e7ebf0;
   }
 
-  /* 固定铺满/安全区/圆角等全部复用 .ios-lock-card 的真机规则，
-     这里只覆盖入场动效（真机不做纵向位移，避免与安全区较劲）。 */
+  /* 固定铺满：基础 .passcode-card 规则在本文件更靠后的位置，同优先级下会
+     压过前面的 .ios-lock-card 真机规则，所以这里必须显式再覆盖一次。 */
   .passcode-card {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    max-width: 100%;
+    height: calc(var(--vh, 1dvh) * 100);
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
     animation-name: passcode-card-in-mobile;
   }
 
