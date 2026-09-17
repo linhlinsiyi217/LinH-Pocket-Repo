@@ -8,7 +8,7 @@
  *   彩色只允许出现在更新日志面板与更新弹窗。
  */
 
-export const APP_VERSION = "0.5.0";
+export const APP_VERSION = "0.6.0";
 
 export type ChangelogKind = "feature" | "fix" | "adjust" | "patch";
 
@@ -32,6 +32,16 @@ export const CHANGELOG_KIND_META: Record<ChangelogKind, { label: string; color: 
 
 /** 完整更新日志，新的在前。发版时在数组头部插入新版本，同时升 APP_VERSION。 */
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: "0.6.0",
+    date: "2026-09-18",
+    entries: [
+      { kind: "feature", text: "新增 iOS 风格锁屏密码：支持 4 位 / 6 位数字密码、圆形大按键、错误轻晃提示与触觉反馈；设置 → 安全 → 锁屏密码中可开启、修改、关闭与切换位数" },
+      { kind: "feature", text: "锁屏改为 iOS 式向上轻扫解锁：页面随手跟动、距离或速度达标顺势离场、未达标轻微回弹，手势可随时打断" },
+      { kind: "fix", text: "修复 Android Chrome / PWA 下锁屏大时间「02:20」数字重叠：改为等宽数字整体排版 + 响应式字号，任何字体回退都不重叠、不溢出" },
+      { kind: "adjust", text: "全屏策略改为 PWA 优先：安装到桌面后由系统提供沉浸界面，不再在普通网页里反复请求 Fullscreen；离开应用超过 30 秒自动重新锁屏" },
+    ],
+  },
   {
     version: "0.5.0",
     date: "2026-09-18",

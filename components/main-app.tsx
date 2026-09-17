@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { AccountGate } from "@/components/auth/account-gate";
 import { BootSplash } from "@/components/boot-splash";
 import { CloudBackupScheduler } from "@/components/cloud-backup-scheduler";
 import IOSKoreanLockScreen from "@/components/ios-korean-lock-screen";
+import { PasscodeScreen } from "@/components/passcode-screen";
 import { RealityBridgeScheduler } from "@/components/reality-bridge-scheduler";
 import { MediaMaintenanceScheduler } from "@/components/media-maintenance-scheduler";
 import { DesktopShell } from "./desktop-shell";
@@ -17,7 +18,7 @@ import { hydrateKvDb, isKvHydrated } from "@/lib/kv-db";
 import { getThemeAssetMap, readThemeProfile } from "@/lib/theme-storage";
 import { resolveActiveIconSkins, type ThemeProfile } from "@/lib/theme-types";
 import { hasPendingMcpOAuthCallback } from "@/lib/tool-executor";
-import { shouldRequestPwaFullscreen } from "@/lib/pwa-display-mode";
+import { isPasscodeEnabled, LOCK_RELOCK_GRACE_MS } from "@/lib/passcode-service";
 
 const TEXT = {
   loading: "\u52A0\u8F7D\u4E2D...",
@@ -151,7 +152,7 @@ async function warmBuiltinFonts(shouldStop: () => boolean): Promise<void> {
   await Promise.all(BUILTIN_FONT_LOAD_SPECS.map((spec) => document.fonts.load(spec).catch(() => [])));
 }
 
-type BootPhase = "boot" | "lock" | "home";
+type BootPhase = "boot" | "locked" | "passcode" | "home";
 
 type PreparedDesktopTheme = {
   profile: ThemeProfile;
@@ -241,24 +242,33 @@ export function MainApp() {
       setHydrated(true);
     })();
 
-    // 安卓全屏兜底。是否请求全屏在每次点击时读取，设置切换后无需重载。
-    const isMobile = window.matchMedia("(max-width: 500px) and (hover: none) and (pointer: coarse)").matches;
-    if (!isMobile) return () => {
-      cancelled = true;
-    };
-
-    function tryFullscreen() {
-      if (!shouldRequestPwaFullscreen()) return;
-      const doc = document.documentElement;
-      if (document.fullscreenElement) return;
-      doc.requestFullscreen?.().catch(() => { });
-    }
-    document.addEventListener("click", tryFullscreen);
+    // 全屏策略以 PWA 为准（manifest display:fullscreen）：
+    // 已安装到桌面的应用启动即沉浸，不在页面加载/点击/路由变化时反复调用
+    // requestFullscreen()，避免 Android Chrome 反复弹出全屏说明条。
     return () => {
       cancelled = true;
-      document.removeEventListener("click", tryFullscreen);
     };
   }, [initAttempt]);
+
+  // 后台重锁：记录隐藏时刻，回来时若离开超过宽限期则重新进入锁屏。
+  // 30 秒以内切回来保持现状（LOCK_RELOCK_GRACE_MS 集中配置）。
+  const hiddenAtRef = useRef<number | null>(null);
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        hiddenAtRef.current = Date.now();
+        return;
+      }
+      if (hiddenAtRef.current === null) return;
+      const awayMs = Date.now() - hiddenAtRef.current;
+      hiddenAtRef.current = null;
+      if (awayMs > LOCK_RELOCK_GRACE_MS) {
+        setPhase((current) => (current === "boot" ? current : "locked"));
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, []);
 
   if (kvHydrateFailed) {
     return (
@@ -284,9 +294,19 @@ export function MainApp() {
   return (
     <AccountGate>
       {phase === "boot" && (
-        <BootSplash onFinish={() => setPhase(hasPendingMcpOAuthCallback() ? "home" : "lock")} />
+        <BootSplash onFinish={() => setPhase(hasPendingMcpOAuthCallback() ? "home" : "locked")} />
       )}
-      {phase === "lock" && <IOSKoreanLockScreen onUnlock={() => setPhase("home")} />}
+      {phase === "locked" && (
+        <IOSKoreanLockScreen
+          onUnlock={() => setPhase(isPasscodeEnabled() ? "passcode" : "home")}
+        />
+      )}
+      {phase === "passcode" && (
+        <PasscodeScreen
+          onSuccess={() => setPhase("home")}
+          onCancel={() => setPhase("locked")}
+        />
+      )}
       {phase === "home" && (
         hydrated ? (
           <main className="app-root">

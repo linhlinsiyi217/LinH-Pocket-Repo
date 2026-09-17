@@ -74,6 +74,66 @@ export function getRuntimePwaDisplayMode(): RuntimePwaDisplayMode {
   return navigatorWithStandalone.standalone ? "standalone" : "browser";
 }
 
+/**
+ * 是否已经运行在「安装到桌面」的 PWA 里（standalone/fullscreen display-mode，
+ * 含 iOS Safari 的 navigator.standalone）。此环境下系统已提供沉浸界面，
+ * 网页绝不能再调用 Fullscreen API。
+ */
+export function isInstalledPwa(): boolean {
+  if (typeof window === "undefined" || typeof navigator === "undefined") return false;
+  if (window.matchMedia("(display-mode: standalone)").matches) return true;
+  if (window.matchMedia("(display-mode: fullscreen)").matches) return true;
+  const navigatorWithStandalone = navigator as Navigator & { standalone?: boolean };
+  return navigatorWithStandalone.standalone === true;
+}
+
+/**
+ * 普通手机浏览器里的「一次性手势全屏」兜底（主 App 已不使用，仅独立窗口的
+ * world-builder 保留）。规则：
+ * - 已是安装版 PWA（standalone/fullscreen）→ 直接跳过；
+ * - 绝不在加载/路由/visibility/focus 时自动请求，只响应用户真实轻触；
+ * - 每次页面生命周期最多请求一次；用户一旦退出全屏，本次生命周期内永不再请求，
+ *   避免 Android Chrome 反复显示「如需退出全屏…」的安全提示条；
+ * - Chrome 自己的提示条无法也不允许由网页关闭。
+ * 返回卸载函数。
+ */
+export function attachGestureFullscreen(): () => void {
+  if (typeof window === "undefined" || typeof document === "undefined") return () => {};
+  if (isInstalledPwa()) return () => {};
+
+  const isMobile = window.matchMedia(
+    "(max-width: 500px) and (hover: none) and (pointer: coarse)"
+  ).matches;
+  if (!isMobile) return () => {};
+
+  let requested = false;
+  let exitBlocked = false;
+
+  const onFullscreenChange = () => {
+    if (!document.fullscreenElement) {
+      // 用户（或浏览器）退出了全屏 → 不再自动请求
+      exitBlocked = true;
+    }
+  };
+
+  const onGesture = () => {
+    if (requested || exitBlocked) return;
+    if (document.fullscreenElement) return;
+    if (!shouldRequestPwaFullscreen()) return;
+    requested = true;
+    document.documentElement.requestFullscreen?.().catch(() => {
+      exitBlocked = true;
+    });
+  };
+
+  document.addEventListener("fullscreenchange", onFullscreenChange);
+  document.addEventListener("pointerdown", onGesture);
+  return () => {
+    document.removeEventListener("fullscreenchange", onFullscreenChange);
+    document.removeEventListener("pointerdown", onGesture);
+  };
+}
+
 /** 非沉浸布局是否生效：必须用户显式开了「显示系统状态栏」且运行时确实不在全屏。
  *  只看运行时模式是不行的——iOS 装到桌面永远报 standalone，会把没碰过开关的
  *  用户也误判成非沉浸（这正是 pwa-manifest-injector 挂标记前要先过这道门的原因）。 */

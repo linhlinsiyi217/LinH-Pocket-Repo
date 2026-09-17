@@ -2,34 +2,19 @@
 
 import { useEffect } from "react";
 
-import { shouldRequestPwaFullscreen } from "@/lib/pwa-display-mode";
+import { attachGestureFullscreen } from "@/lib/pwa-display-mode";
 
 /**
- * 安卓全屏兜底：点击屏幕进入全屏模式（iOS 不支持此 API，会自动忽略）。
+ * 安卓全屏兜底（仅 world-builder 独立窗口使用）。
  *
- * world-builder（筑境）通过 window.open 开在独立窗口，不在 main-app 的 React 树内，
- * 因此拿不到 main-app 里那段「点击进全屏」的监听，会一直露出浏览器地址栏。
- * 这个组件把同一套逻辑复刻到 world-builder 窗口，挂上即可。
+ * world-builder（筑境）通过 window.open 开在独立窗口，不在 main-app 的 React 树内。
+ * 全屏以 PWA 为优先策略：已安装（standalone/fullscreen display-mode）时什么都不做；
+ * 普通手机浏览器里，只在用户第一次真实轻触时请求一次 requestFullscreen()，
+ * 用户退出全屏后本页面生命周期内不再请求——避免 Chrome 反复弹出全屏安全提示。
+ * 绝不在加载/路由/visibility/focus 等事件里自动请求。
  */
 export function AndroidFullscreen() {
-  useEffect(() => {
-    const isMobile = window.matchMedia(
-      "(max-width: 500px) and (hover: none) and (pointer: coarse)"
-    ).matches;
-    if (!isMobile) return;
-
-    function tryFullscreen() {
-      if (!shouldRequestPwaFullscreen()) return;
-      const doc = document.documentElement;
-      if (document.fullscreenElement) return;
-      doc.requestFullscreen?.().catch(() => { });
-    }
-    // 每次点击都尝试进入全屏（退出后可重新进入）
-    document.addEventListener("click", tryFullscreen);
-    return () => {
-      document.removeEventListener("click", tryFullscreen);
-    };
-  }, []);
+  useEffect(() => attachGestureFullscreen(), []);
 
   return null;
 }

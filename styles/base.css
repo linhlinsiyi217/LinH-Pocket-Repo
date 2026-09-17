@@ -417,6 +417,46 @@ a {
 .ios-lock-content {
   padding-top: 54px;
 }
+
+/* 锁屏大时间：作为正常文本整体排版，绝不逐字符定位。
+   旧版用 tracking:-0.08em 贴着 SF Pro 的字宽收紧，Android 回退 Roboto/Noto
+   后字宽更大，负字距直接把 02:20 挤到重叠。这里：
+   - nowrap + max-content + margin auto：整体水平居中，宽度由字形决定；
+   - tabular-nums：等宽数字，跳秒时宽度不抖；
+   - 字距只轻微收紧（-0.02em），任何 fallback 字体都不会叠字；
+   - 真机字号用 vw 线性缩放 + 上下限，360/390/430 均不溢出。 */
+.ios-lock-clock {
+  margin: -2px auto 0;
+  width: max-content;
+  max-width: 100%;
+  white-space: nowrap;
+  text-align: center;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+    "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Roboto", "Noto Sans SC",
+    "Segoe UI", sans-serif;
+  font-size: 105px;
+  font-weight: 250;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  color: #565d68;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+@media (max-width: 600px) {
+  .ios-lock-clock {
+    /* 360px≈83px / 390px≈90px / 430px≈99px，桌面预览仍封顶 105px */
+    font-size: clamp(76px, 23vw, 105px);
+  }
+}
+
+@media (max-width: 360px) {
+  .ios-lock-clock {
+    letter-spacing: -0.015em;
+  }
+}
 .glass-btn.ios-lock-round {
   width: 61px;
   height: 61px;
@@ -475,6 +515,368 @@ a {
 @media (max-width: 600px) {
   .ios-lock-unlocked {
     min-height: calc(var(--vh, 1dvh) * 100);
+  }
+}
+
+/* ── iOS 风格锁屏密码页 ──
+   沿用锁屏的 390×820 玻璃卡片框架，只在卡内排布；动效只用 transform/opacity。 */
+.passcode-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 390px;
+  max-width: 100%;
+  height: 820px;
+  overflow: hidden;
+  border-radius: 52px;
+  background: #e7ebf0;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 30px 90px rgba(60, 72, 90, 0.22);
+  --tw-ring-shadow: 0 0 0 1px rgba(255, 255, 255, 0.8);
+  animation: passcode-card-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.passcode-card.is-exiting {
+  animation: none;
+  opacity: 0;
+  transform: translateY(-26px);
+  transition:
+    opacity 280ms ease-out,
+    transform 280ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@keyframes passcode-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.passcode-screen-body {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 118px);
+}
+
+.passcode-lock-glyph {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  color: #3a404b;
+  background: rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9), 0 6px 18px rgba(90, 104, 124, 0.1);
+  backdrop-filter: blur(18px);
+}
+
+.passcode-title {
+  margin: 14px 0 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #232830;
+}
+
+.passcode-message {
+  margin: 8px 0 0;
+  min-height: 18px;
+  font-size: 13px;
+  color: #6b7280;
+  transition: color 160ms ease-out;
+}
+
+.passcode-message.is-error {
+  color: #ff3b30;
+}
+
+/* 圆点 */
+.passcode-dots {
+  display: flex;
+  justify-content: center;
+  gap: 22px;
+  margin-top: 14px;
+}
+
+.passcode-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.6px solid rgba(54, 60, 70, 0.55);
+  background: transparent;
+  transition: background-color 140ms ease-out, border-color 140ms ease-out;
+}
+
+.passcode-dot.is-filled {
+  background: #2a2f38;
+  border-color: #2a2f38;
+}
+
+.passcode-dots.is-shake {
+  animation: passcode-shake 440ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+/* 非常克制的左右轻晃：最大 ±10px */
+@keyframes passcode-shake {
+  0%, 100% { transform: translateX(0); }
+  18% { transform: translateX(-10px); }
+  38% { transform: translateX(9px); }
+  58% { transform: translateX(-6px); }
+  78% { transform: translateX(3px); }
+}
+
+/* 键盘 */
+.passcode-screen-keypad {
+  position: relative;
+  z-index: 2;
+  padding: 0 38px calc(env(safe-area-inset-bottom, 0px) + 42px);
+}
+
+.passcode-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  justify-items: center;
+  row-gap: 16px;
+  column-gap: 22px;
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+.passcode-key {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 76px;
+  height: 76px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.42);
+  color: #232830;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9), 0 6px 18px rgba(90, 104, 124, 0.08);
+  backdrop-filter: blur(18px);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  transition:
+    transform 120ms ease-out,
+    opacity 120ms ease-out,
+    background-color 120ms ease-out;
+}
+
+.passcode-key:active {
+  transform: scale(0.92);
+  opacity: 0.62;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.passcode-key-num {
+  font-size: 32px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+
+.passcode-key-letters {
+  margin-top: 3px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-indent: 0.18em;
+  color: #3c424c;
+}
+
+.passcode-key-side {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.passcode-key-side:active {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.passcode-key-side-label {
+  font-size: 15px;
+  font-weight: 500;
+  color: #2c323c;
+  white-space: nowrap;
+}
+
+/* ── 设置页内嵌输入面板（小一圈，容纳在 PageShell 卡片内） ── */
+.passcode-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 22px 16px 26px;
+}
+
+.passcode-panel-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--c-text-title, #1c1c1e);
+}
+
+.passcode-panel-subtitle {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  color: var(--c-text, #6b7280);
+}
+
+.passcode-panel-message {
+  margin-top: 8px;
+  min-height: 18px;
+  font-size: 13px;
+  color: var(--c-danger, #ff3b30);
+}
+
+.passcode-panel .passcode-dots {
+  margin-top: 12px;
+}
+
+.passcode-panel .passcode-keypad {
+  margin-top: 22px;
+  row-gap: 12px;
+  column-gap: 16px;
+}
+
+.passcode-panel .passcode-key {
+  width: 62px;
+  height: 62px;
+}
+
+.passcode-panel .passcode-key-num {
+  font-size: 26px;
+}
+
+.passcode-panel .passcode-key-letters {
+  font-size: 8.5px;
+  margin-top: 2px;
+}
+
+.passcode-panel .passcode-key-side-label {
+  font-size: 13px;
+}
+
+.passcode-panel-busy {
+  width: 6px;
+  height: 6px;
+  margin-top: 10px;
+  border-radius: 50%;
+  background: var(--c-text, #8e8e93);
+  opacity: 0.5;
+}
+
+/* ── 设置 · 锁屏密码子页 ── */
+.lock-passcode-note {
+  margin: 12px 6px 0;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--c-text, #8e8e93);
+}
+
+.lock-passcode-length-value {
+  margin-right: 2px;
+  font-size: 13px;
+  color: var(--c-text, #8e8e93);
+}
+
+.lock-passcode-primary {
+  display: block;
+  margin: 20px auto 0;
+  padding: 11px 38px;
+  border: none;
+  border-radius: 999px;
+  background: var(--c-accent, var(--c-action-blue, #0a84ff));
+  color: var(--c-accent-contrast, #ffffff);
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition: transform 140ms ease-out, opacity 140ms ease-out;
+}
+
+.lock-passcode-primary:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+
+/* 真机：密码卡片与锁屏一样铺满动态视口 */
+@media (max-width: 600px) {
+  .passcode-root {
+    display: block;
+    width: 100vw;
+    height: calc(var(--vh, 1dvh) * 100);
+    min-height: calc(var(--vh, 1dvh) * 100);
+    padding: 0;
+    overflow: hidden;
+    background: #e7ebf0;
+  }
+
+  /* 固定铺满/安全区/圆角等全部复用 .ios-lock-card 的真机规则，
+     这里只覆盖入场动效（真机不做纵向位移，避免与安全区较劲）。 */
+  .passcode-card {
+    animation-name: passcode-card-in-mobile;
+  }
+
+  .passcode-card.is-exiting {
+    transform: translateY(-20px);
+  }
+
+  @keyframes passcode-card-in-mobile {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .passcode-screen-body {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 104px);
+  }
+
+  .passcode-screen-keypad {
+    padding-left: 28px;
+    padding-right: 28px;
+  }
+
+  .passcode-keypad {
+    max-width: none;
+  }
+
+  /* 窄屏按键按可用宽度轻微伸缩，但保持圆形触控区下限 */
+  .passcode-key {
+    width: clamp(68px, 20vw, 76px);
+    height: clamp(68px, 20vw, 76px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .passcode-card,
+  .passcode-card.is-exiting {
+    animation: none;
+    transition: opacity 1ms linear;
+    transform: none;
+  }
+
+  .passcode-dots.is-shake {
+    animation: none;
+  }
+
+  .passcode-key,
+  .passcode-key:active {
+    transition: opacity 1ms linear;
+    transform: none;
   }
 }
 

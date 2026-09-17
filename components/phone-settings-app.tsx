@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, createContext, type CSSProperties, type ReactNode } from "react";
-import { Activity, Check, ChevronRight, Clock, Database, FileText, Fingerprint, Globe, HardDrive, Image, Info, KeyRound, Laptop, Layers, Link2, Loader2, LogOut, MessageSquare, Mic, SlidersHorizontal, Sparkles, UserCircle, Wrench, X, CloudUpload } from "lucide-react";
+import { Activity, Check, ChevronRight, Clock, Database, FileText, Fingerprint, Globe, HardDrive, Image, Info, KeyRound, Laptop, Layers, Link2, Loader2, LockKeyhole, LogOut, MessageSquare, Mic, SlidersHorizontal, Sparkles, UserCircle, Wrench, X, CloudUpload } from "lucide-react";
 import { ConfirmDialog } from "./ui/modal";
 import { OPEN_CHANGELOG_EVENT, useUpdateUnread } from "./update-notice";
 import { APP_VERSION } from "@/lib/version-info";
@@ -23,6 +23,7 @@ import { CloudServicesPage } from "./settings/cloud-services-setup";
 import { ToolboxSettings } from "./settings/toolbox-settings";
 import { ModerationCenter } from "./settings/moderation-center";
 import { AgentComputerSettings } from "./settings/agent-computer-settings";
+import { LockPasscodeSettings } from "./settings/lock-passcode-settings";
 import { fetchIsAdmin } from "@/lib/moderation-client";
 import { PageShell } from "./ui/page-shell";
 import { CardGrid, FeaturedCard, type CardItem, type FeaturedCardItem } from "./ui/card-grid";
@@ -59,6 +60,7 @@ type SubPage =
     | "toolbox"
     | "agentComputer"
     | "moderation"
+    | "lockPasscode"
     | "about";
 
 const SETTINGS_MENU = [
@@ -186,7 +188,9 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
             ? ""
             : currentPage === "moderation"
                 ? "管理中心"
-                : SETTINGS_MENU.find(m => m.id === currentPage)?.label || "设置";
+                : currentPage === "lockPasscode"
+                    ? "锁屏密码"
+                    : SETTINGS_MENU.find(m => m.id === currentPage)?.label || "设置";
     const title = subpageTitle || defaultTitle;
 
     const setSubpageRightAction = useCallback((page: string, action: ReactNode | null) => {
@@ -330,6 +334,8 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                 return <ModerationCenter onNotice={onNotice} />;
             case "identity":
                 return <UserIdentitySettings />;
+            case "lockPasscode":
+                return <LockPasscodeSettings onNotice={onNotice} />;
             case "about":
                 return <AboutDeclaration />;
             default:
@@ -514,6 +520,27 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                                         <Toggle checked={quickActionEnabled} onChange={handleQuickActionChange} className="settings-toggle-control" />
                                     </span>
                                 </div>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 className="settings-menu-section-title text-label">Security</h3>
+                            <div className="menu-group settings-group mt-[10px]">
+                                <button
+                                    type="button"
+                                    className="menu-item settings-cell settings-tools-menu-item w-full text-left"
+                                    onClick={() => setCurrentPage("lockPasscode")}
+                                >
+                                    <span className="card-icon card-icon-glass">
+                                        <LockKeyhole size={20} strokeWidth={1.8} />
+                                    </span>
+                                    <span className="settings-tools-menu-copy">
+                                        <span className="menu-label appearance-menu-item-label">锁屏密码</span>
+                                        <span className="menu-desc settings-tools-menu-desc">4 位 / 6 位数字密码，上滑解锁保护</span>
+                                    </span>
+                                    <span className="menu-right settings-update-row-right">
+                                        <ChevronRight size={17} className="settings-account-chevron" />
+                                    </span>
+                                </button>
                             </div>
                         </div>
                         <div className="menu-group settings-group">
