@@ -8,7 +8,7 @@
  *   彩色只允许出现在更新日志面板与更新弹窗。
  */
 
-export const APP_VERSION = "0.3.0";
+export const APP_VERSION = "0.4.0";
 
 export type ChangelogKind = "feature" | "fix" | "adjust" | "patch";
 
@@ -32,6 +32,14 @@ export const CHANGELOG_KIND_META: Record<ChangelogKind, { label: string; color: 
 
 /** 完整更新日志，新的在前。发版时在数组头部插入新版本，同时升 APP_VERSION。 */
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: "0.4.0",
+    date: "2026-09-18",
+    entries: [
+      { kind: "adjust", text: "全局底部弹层（Action Sheet）与居中弹窗重做：36px 珍珠毛玻璃、顶部发丝亮边、双层柔光投影，底部自动避让手势条" },
+      { kind: "adjust", text: "聊天消息长按菜单由深灰胶囊改为珍珠玻璃浮层，菜单项按压有弹性反馈，删除等危险项保留红色" },
+    ],
+  },
   {
     version: "0.3.0",
     date: "2026-09-18",
