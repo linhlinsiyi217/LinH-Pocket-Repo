@@ -400,11 +400,11 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                         )}
                         <CardGrid
                             label="API Config"
-                            labelClassName="settings-menu-section-title"
+                            labelClassName="settings-menu-section-title text-label"
                             items={SETTINGS_MENU.filter(item => ["api", "voice"].includes(item.id)).map(makeCardItem)}
                         />
                         <div className="settings-data-rules-section">
-                            <h3 className="settings-menu-section-title">Data & Rules</h3>
+                            <h3 className="settings-menu-section-title text-label">Data &amp; Rules</h3>
                             <div className="mt-[10px] flex flex-col gap-3">
                                 <CardGrid
                                     items={SETTINGS_MENU.filter(item => ["presets", "worldbook", "regex", "data"].includes(item.id)).map(makeCardItem)}
@@ -413,13 +413,13 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                             </div>
                         </div>
                         <div className="settings-image-generation-section">
-                            <h3 className="settings-menu-section-title">Image Generation</h3>
+                            <h3 className="settings-menu-section-title text-label">Image Generation</h3>
                             <div className="mt-[10px]">
                                 <FeaturedCard item={imageGenerationFeaturedItem} />
                             </div>
                         </div>
                         <div>
-                            <h3 className="settings-menu-section-title">Connections</h3>
+                            <h3 className="settings-menu-section-title text-label">Connections</h3>
                             <div className="mt-[10px]">
                                 <FeaturedCard item={cloudFeaturedItem} />
                             </div>
@@ -433,7 +433,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                             </div>
                         </div>
                         <div className="settings-realtime-section">
-                            <h3 className="settings-menu-section-title">Runtime</h3>
+                            <h3 className="settings-menu-section-title text-label">Runtime</h3>
                             <div className="app-card card-featured settings-toggle-card">
                                 <span className="card-icon card-icon-glass">
                                     <GlassIcon name="time-aware" />
@@ -457,7 +457,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                         </div>
                         {isAdmin ? (
                             <div className="settings-moderation-section">
-                                <h3 className="settings-menu-section-title">Moderation</h3>
+                                <h3 className="settings-menu-section-title text-label">Moderation</h3>
                                 <div className="app-card card-featured settings-toggle-card" role="button" tabIndex={0} style={{ cursor: "pointer" }} onClick={() => setCurrentPage("moderation")}>
                                     <span className="card-icon card-icon-glass">
                                         <GlassIcon name="moderation" />
@@ -473,7 +473,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                         <div className="settings-tools-section">
                             <div className="settings-tools-header">
                                 <div className="settings-tools-title-wrap">
-                                    <h3 className="settings-menu-section-title">Tools</h3>
+                                    <h3 className="settings-menu-section-title text-label">Tools</h3>
                                     <button
                                         type="button"
                                         className="settings-tools-info-btn"
@@ -489,8 +489,8 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                                     </button>
                                 </div>
                             </div>
-                            <div className="menu-group settings-tools-menu">
-                                <div className="menu-item settings-tools-menu-item">
+                            <div className="menu-group settings-group settings-tools-menu">
+                                <div className="menu-item settings-cell settings-tools-menu-item">
                                     <span className="card-icon card-icon-glass">
                                         <GlassIcon name="prompt-viewer" />
                                     </span>
@@ -502,7 +502,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                                         <Toggle checked={promptViewerEnabled} onChange={handlePromptViewerChange} className="settings-toggle-control" />
                                     </span>
                                 </div>
-                                <div className="menu-item settings-tools-menu-item">
+                                <div className="menu-item settings-cell settings-tools-menu-item">
                                     <span className="card-icon card-icon-glass">
                                         <GlassIcon name="quick-action" />
                                     </span>
@@ -516,10 +516,10 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                                 </div>
                             </div>
                         </div>
-                        <div className="menu-group">
+                        <div className="menu-group settings-group">
                             <button
                                 type="button"
-                                className="menu-item settings-tools-menu-item w-full text-left"
+                                className="menu-item settings-cell settings-tools-menu-item w-full text-left"
                                 onClick={() => window.dispatchEvent(new CustomEvent(OPEN_CHANGELOG_EVENT))}
                             >
                                 <span className="card-icon card-icon-glass">
@@ -537,7 +537,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                         </div>
                         <CardGrid
                             label="User"
-                            labelClassName="settings-menu-section-title"
+                            labelClassName="settings-menu-section-title text-label"
                             items={SETTINGS_MENU.filter(item => ["identity", "about"].includes(item.id)).map(makeCardItem)}
                         />
                         {floatingDockSheetOpen && (
@@ -549,8 +549,8 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                                         <button className="modal-header-btn modal-header-btn-muted" onClick={() => setFloatingDockSheetOpen(false)} aria-label="关闭"><X size={18} /></button>
                                     </div>
                                     <div className="modal-body modal-body-tight" data-ui="modal-body">
-                                        <div className="menu-group">
-                                            <div className="menu-item settings-tools-menu-item">
+                                        <div className="menu-group settings-group">
+                                            <div className="menu-item settings-cell settings-tools-menu-item">
                                                 <span className="card-icon card-icon-glass">
                                                     <SlidersHorizontal size={20} strokeWidth={1.8} />
                                                 </span>
@@ -575,8 +575,8 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                                         <span style={{ width: 44 }} />
                                     </div>
                                     <div className="modal-body modal-body-tight" data-ui="modal-body">
-                                        <div className="menu-group">
-                                            <div className="menu-item settings-tools-menu-item">
+                                        <div className="menu-group settings-group">
+                                            <div className="menu-item settings-cell settings-tools-menu-item">
                                                 <span className="card-icon" style={accountIconStyle}>
                                                     <UserCircle size={22} strokeWidth={1.75} />
                                                 </span>
@@ -588,7 +588,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                                                     <button className="ui-btn ui-btn-outline py-1 px-3 ts-12" style={{ whiteSpace: "nowrap" }} onClick={handleCopyUsername}>复制</button>
                                                 </span>
                                             </div>
-                                            <button type="button" className="menu-item settings-tools-menu-item w-full text-left" onClick={() => { setAccountSheetOpen(false); setPwdModalOpen(true); }}>
+                                            <button type="button" className="menu-item settings-cell settings-tools-menu-item w-full text-left" onClick={() => { setAccountSheetOpen(false); setPwdModalOpen(true); }}>
                                                 <span className="card-icon" style={passwordIconStyle}>
                                                     <KeyRound size={22} strokeWidth={1.75} />
                                                 </span>
@@ -598,7 +598,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                                                 </span>
                                                 <span className="menu-right"><ChevronRight size={17} className="settings-account-chevron" /></span>
                                             </button>
-                                            <button type="button" className="menu-item settings-tools-menu-item w-full text-left" onClick={() => { setAccountSheetOpen(false); setConfirmLogout(true); }}>
+                                            <button type="button" className="menu-item settings-cell settings-tools-menu-item w-full text-left" onClick={() => { setAccountSheetOpen(false); setConfirmLogout(true); }}>
                                                 <span className="card-icon" style={logoutIconStyle}>
                                                     <LogOut size={22} strokeWidth={1.75} />
                                                 </span>

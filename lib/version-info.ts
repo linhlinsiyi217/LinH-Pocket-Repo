@@ -8,7 +8,7 @@
  *   彩色只允许出现在更新日志面板与更新弹窗。
  */
 
-export const APP_VERSION = "0.2.0";
+export const APP_VERSION = "0.2.1";
 
 export type ChangelogKind = "feature" | "fix" | "adjust" | "patch";
 
@@ -32,6 +32,21 @@ export const CHANGELOG_KIND_META: Record<ChangelogKind, { label: string; color: 
 
 /** 完整更新日志，新的在前。发版时在数组头部插入新版本，同时升 APP_VERSION。 */
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: "0.2.1",
+    date: "2026-09-18",
+    entries: [
+      { kind: "feature", text: "全局注入 Pearl Glass 珍珠玻璃设计系统：统一玻璃卡片、玻璃按钮、玻璃弹窗与排版令牌" },
+      { kind: "feature", text: "锁屏手电筒、相机按钮升级为圆形玻璃按钮，按压缩放回弹，手电筒开启时变深发光" },
+      { kind: "adjust", text: "集成全新 iOS 韩系珍珠玻璃锁屏，银白液态玻璃质感与微光组件" },
+      { kind: "adjust", text: "锁屏顶部状态栏与主界面完全统一：同款时间、信号、Wi-Fi、电量样式与配色变量" },
+      { kind: "adjust", text: "更新日志弹窗改用统一玻璃模态面板，四色标签升级为微光胶囊" },
+      { kind: "adjust", text: "设置页分组、选项行与分区标题开始套用 Pearl Glass 玻璃样式" },
+      { kind: "fix", text: "修复开屏动画结束后偶发白屏：CSS 加载顺序导致白底覆盖锁屏底色" },
+      { kind: "fix", text: "改用 visualViewport 动态视口高度，内容分层避让安全区，根除安卓全面屏顶部与底部白条" },
+      { kind: "patch", text: "放弃状态栏涂黑方案，壁纸与背景现可完整延伸至系统栏下方" },
+    ],
+  },
   {
     version: "0.2.0",
     date: "2026-09-17",
