@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, createContext, type CSSProperties, type ReactNode } from "react";
-import { Activity, Check, ChevronRight, Clock, Database, FileText, Fingerprint, Globe, HardDrive, Image, Info, KeyRound, Laptop, Layers, Link2, Loader2, LogOut, MessageSquare, Mic, SlidersHorizontal, UserCircle, Wrench, X, CloudUpload } from "lucide-react";
+import { Activity, Check, ChevronRight, Clock, Database, FileText, Fingerprint, Globe, HardDrive, Image, Info, KeyRound, Laptop, Layers, Link2, Loader2, LogOut, MessageSquare, Mic, SlidersHorizontal, Sparkles, UserCircle, Wrench, X, CloudUpload } from "lucide-react";
 import { ConfirmDialog } from "./ui/modal";
+import { OPEN_CHANGELOG_EVENT, useUpdateUnread } from "./update-notice";
+import { APP_VERSION } from "@/lib/version-info";
 import { useAccount } from "@/lib/account-context";
 import { isSelfHostedModeEnabled } from "@/lib/self-hosting";
 import { changeAccountPassword } from "@/lib/account-client";
@@ -106,6 +108,8 @@ const logoutIconStyle = {
 
 export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
     const [currentPage, setCurrentPage] = useState<SubPage>("main");
+    // 更新日志未读白色小圆点（PROJECT_RULES.md 第四章）
+    const updateUnread = useUpdateUnread();
     const [subpageTitle, setSubpageTitle] = useState<string | null>(null);
     const [subpageRightActions, setSubpageRightActions] = useState<Record<string, ReactNode>>({});
     const [overrideBack, setOverrideBack] = useState<(() => void) | null>(null);
@@ -511,6 +515,25 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                                     </span>
                                 </div>
                             </div>
+                        </div>
+                        <div className="menu-group">
+                            <button
+                                type="button"
+                                className="menu-item settings-tools-menu-item w-full text-left"
+                                onClick={() => window.dispatchEvent(new CustomEvent(OPEN_CHANGELOG_EVENT))}
+                            >
+                                <span className="card-icon card-icon-glass">
+                                    <Sparkles size={22} strokeWidth={1.75} />
+                                </span>
+                                <span className="settings-tools-menu-copy">
+                                    <span className="menu-label appearance-menu-item-label">更新日志</span>
+                                    <span className="menu-desc settings-tools-menu-desc">版本 v{APP_VERSION}</span>
+                                </span>
+                                <span className="menu-right settings-update-row-right">
+                                    {updateUnread ? <span className="update-dot update-dot-row" aria-label="有新版本" /> : null}
+                                    <ChevronRight size={17} className="settings-account-chevron" />
+                                </span>
+                            </button>
                         </div>
                         <CardGrid
                             label="User"

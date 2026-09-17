@@ -1,15 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowRight } from "lucide-react";
 
 import { AccountGate } from "@/components/auth/account-gate";
+import { BootSplash } from "@/components/boot-splash";
 import { CloudBackupScheduler } from "@/components/cloud-backup-scheduler";
+import { LockScreen } from "@/components/lock-screen";
 import { RealityBridgeScheduler } from "@/components/reality-bridge-scheduler";
 import { MediaMaintenanceScheduler } from "@/components/media-maintenance-scheduler";
 import { DesktopShell } from "./desktop-shell";
 import { OfflinePushRevampAnnouncement } from "./offline-push-revamp-announcement";
-import { SplashAnimation } from "./splash-animation";
+import { UpdateNotice } from "./update-notice";
 import { MusicProvider } from "@/lib/music-context";
 import { hydrateKvDb, isKvHydrated } from "@/lib/kv-db";
 import { getThemeAssetMap, readThemeProfile } from "@/lib/theme-storage";
@@ -149,33 +150,7 @@ async function warmBuiltinFonts(shouldStop: () => boolean): Promise<void> {
   await Promise.all(BUILTIN_FONT_LOAD_SPECS.map((spec) => document.fonts.load(spec).catch(() => [])));
 }
 
-function SplashScreen({ ready = false, onEnter }: { ready?: boolean; onEnter?: () => void }) {
-  return (
-    <main className="app-root splash-root">
-      <section
-        className="phone-shell-wrap splash-shell-wrap"
-        aria-label={TEXT.loading}
-      >
-        <div className="phone-case">
-          <div className="phone-frame">
-            <div className="phone-shell splash-phone-screen">
-              <SplashAnimation />
-              <button
-                type="button"
-                className={ready ? "splash-enter-button splash-enter-button-show" : "splash-enter-button"}
-                onClick={onEnter}
-                disabled={!ready}
-                aria-label="Enter"
-              >
-                <ArrowRight size={18} strokeWidth={1.8} />
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
-  );
-}
+type BootPhase = "boot" | "lock" | "home";
 
 type PreparedDesktopTheme = {
   profile: ThemeProfile;
@@ -229,7 +204,7 @@ async function prepareDesktopThemeForFirstPaint(): Promise<PreparedDesktopTheme>
 export function MainApp() {
   const [preparedDesktopTheme, setPreparedDesktopTheme] = useState<PreparedDesktopTheme | null>(null);
   const [hydrated, setHydrated] = useState(false);
-  const [splashDismissed, setSplashDismissed] = useState(false);
+  const [phase, setPhase] = useState<BootPhase>("boot");
   const [kvHydrateFailed, setKvHydrateFailed] = useState(false);
   const [initAttempt, setInitAttempt] = useState(0);
 
@@ -261,9 +236,6 @@ export function MainApp() {
       if (cancelled) return;
       setPreparedDesktopTheme(nextPreparedTheme);
       setHydrated(true);
-      if (hasPendingMcpOAuthCallback()) {
-        setSplashDismissed(true);
-      }
     })();
 
     // 安卓全屏兜底。是否请求全屏在每次点击时读取，设置切换后无需重载。
@@ -308,21 +280,30 @@ export function MainApp() {
 
   return (
     <AccountGate>
-      {!splashDismissed ? (
-        <SplashScreen ready={hydrated} onEnter={() => setSplashDismissed(true)} />
-      ) : (
-        <main className="app-root">
-          <MusicProvider>
-            <DesktopShell
-              initialThemeProfile={preparedDesktopTheme?.profile}
-              initialThemeAssets={preparedDesktopTheme?.assets}
-            />
-            <OfflinePushRevampAnnouncement />
-            <CloudBackupScheduler />
-            <RealityBridgeScheduler />
-            <MediaMaintenanceScheduler />
-          </MusicProvider>
-        </main>
+      {phase === "boot" && (
+        <BootSplash onFinish={() => setPhase(hasPendingMcpOAuthCallback() ? "home" : "lock")} />
+      )}
+      {phase === "lock" && <LockScreen onUnlock={() => setPhase("home")} />}
+      {phase === "home" && (
+        hydrated ? (
+          <main className="app-root">
+            <MusicProvider>
+              <DesktopShell
+                initialThemeProfile={preparedDesktopTheme?.profile}
+                initialThemeAssets={preparedDesktopTheme?.assets}
+              />
+              <OfflinePushRevampAnnouncement />
+              <UpdateNotice />
+              <CloudBackupScheduler />
+              <RealityBridgeScheduler />
+              <MediaMaintenanceScheduler />
+            </MusicProvider>
+          </main>
+        ) : (
+          <main className="app-root" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100dvh", background: "#000000" }}>
+            <span className="home-prepare-dot" aria-label={TEXT.loading} />
+          </main>
+        )
       )}
     </AccountGate>
   );

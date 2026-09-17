@@ -30,14 +30,14 @@ export function GET(request: NextRequest) {
           ...baseManifest,
           display: isEdge ? "minimal-ui" : "standalone",
           display_override: isEdge ? ["minimal-ui", "standalone"] : ["standalone", "minimal-ui"],
-          ...(isEdge ? { theme_color: "#f8f7f2" } : {}),
+          ...(isEdge ? { theme_color: "#000000" } : {}),
         }
       : isEdge
         ? {
             ...baseManifest,
             display: "minimal-ui",
             display_override: ["minimal-ui", "standalone"],
-            theme_color: "#f8f7f2",
+            theme_color: "#000000",
           }
         : baseManifest;
 

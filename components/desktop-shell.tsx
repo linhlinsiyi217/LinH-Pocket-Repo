@@ -10,6 +10,7 @@ import { bgTimerCleanup } from "@/lib/bg-timer";
 import { PhoneThemeApp } from "@/components/phone-theme-app";
 import { PhoneCharacterApp } from "@/components/phone-character-app";
 import { PhoneSettingsApp } from "@/components/phone-settings-app";
+import { useUpdateUnread } from "@/components/update-notice";
 import { PhoneChatApp } from "@/components/chat/phone-chat-app";
 import { PhonePlaceholderApp } from "@/components/phone-placeholder-app";
 import MusicApp from "@/components/music/music-app";
@@ -1059,6 +1060,8 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
   const [glassPaintPass, setGlassPaintPass] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
   const [activeApp, setActiveApp] = useState<DesktopIconId | null>(null);
+  // 设置图标的「更新未读」白色小圆点（PROJECT_RULES.md 第四章）
+  const updateUnread = useUpdateUnread();
   const [customApps, setCustomApps] = useState<InstalledCustomApp[]>([]);
   // 自定义 APP 桌面图标样式偏好（global = 忽略上传图标走全局效果）
   const [customAppIconStyles, setCustomAppIconStyles] = useState<Record<string, CustomAppIconStyle>>({});
@@ -4666,6 +4669,9 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
                                       <span className="desktop-icon-badge" aria-label={`${badgeCount} 条未读`}>
                                         {badgeCount > 99 ? "99+" : badgeCount}
                                       </span>
+                                    ) : null}
+                                    {builtinIconId === "settings" && updateUnread ? (
+                                      <span className="update-dot update-dot-icon" aria-label="有新版本" />
                                     ) : null}
                                   </span>
                                   <span className="icon-label">{icon.label}</span>
