@@ -407,11 +407,26 @@ a {
 
 /* ── iOS 韩系锁屏：真机全面屏适配（分层方案） ──
    设计稿默认是「桌面预览」：居中 390×820 圆角卡片 + 外围留白，桌面端保持原样。
+   状态栏直接复用主页 phone-status-bar（绝对定位），因此内容区需在文档流里
+   让出状态栏高度；手电/相机圆形按钮沿用 Pearl Glass 圆形按钮、保持 61px 设计稿尺寸。
    手机窄屏（PWA/浏览器）下：
    - 背景层：最外层与卡片壁纸铺满整个动态视口，无 padding、无圆角，
      壁纸直接延伸到状态栏/手势条底下；
-   - 内容层：状态栏、灵动岛、底部按钮、通知、横条提示分别加 env(safe-area-inset-*)
+   - 内容层：状态栏、底部按钮、通知、横条提示分别加 env(safe-area-inset-*)
      避让刘海/灵动岛/底部手势区，不写死任何像素高度。 */
+.ios-lock-content {
+  padding-top: 54px;
+}
+.glass-btn.ios-lock-round {
+  width: 61px;
+  height: 61px;
+  min-height: 61px;
+  color: #505762;
+}
+.glass-btn.ios-lock-round.is-active {
+  color: #ffffff;
+}
+
 @media (max-width: 600px) {
   .ios-lock-root {
     display: block;
@@ -436,14 +451,12 @@ a {
     --tw-ring-shadow: 0 0 #0000;
   }
 
-  /* 内容层：顶部信息避让安全区（时钟区块在文档流里，会随 header 增高自然下移） */
-  .ios-lock-statusbar {
-    height: auto;
-    min-height: 54px;
-    padding-top: calc(env(safe-area-inset-top, 0px) + 8px);
+  /* 内容层：复用主页同款状态栏，真机按安全区下移；内容区整体避让刘海 */
+  .ios-lock-card .phone-status-bar {
+    top: calc(env(safe-area-inset-top, 0px) + 10px);
   }
-  .ios-lock-island {
-    top: calc(env(safe-area-inset-top, 0px) + 13px);
+  .ios-lock-content {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 52px);
   }
 
   /* 底部内容避让手势横条 */
@@ -465,7 +478,9 @@ a {
   }
 }
 
-/* ── 更新日志弹窗（韩系高级玻璃拟态，与新锁屏同风格） ── */
+/* ── 更新日志弹窗 ──
+   表面质感（底色/模糊/发丝边/投影/圆角）统一由 Pearl Glass 的
+   .glass-overlay + .glass-modal 提供，这里只保留布局、排版与动效。 */
 .update-overlay {
   position: fixed;
   inset: 0;
@@ -474,9 +489,6 @@ a {
   align-items: center;
   justify-content: center;
   padding: 0 28px;
-  background: rgba(18, 21, 28, 0.34);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
   animation: updateOverlayIn 0.3s ease both;
 }
 
@@ -487,17 +499,6 @@ a {
   display: flex;
   flex-direction: column;
   padding: 14px 22px 20px;
-  border-radius: 30px;
-  border: 0.5px solid rgba(255, 255, 255, 0.78);
-  background:
-    linear-gradient(165deg, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0.44) 46%, rgba(244, 247, 251, 0.55) 100%),
-    rgba(255, 255, 255, 0.56);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.95),
-    inset 0 -1px 2px rgba(120, 132, 150, 0.08),
-    0 30px 80px rgba(40, 50, 66, 0.28);
   animation: updateDialogIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
 }
 .update-dialog-handle {

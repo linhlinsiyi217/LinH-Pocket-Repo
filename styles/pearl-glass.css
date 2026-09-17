@@ -1,0 +1,888 @@
+/* =========================================================
+   iOS KOREAN PEARL GLASS DESIGN SYSTEM
+   Silver / pearl liquid glass · Korean minimal · soft iOS
+   tactile feedback · low saturation · quiet luxury
+
+   集成注意（本项目适配，非视觉变更）：
+   1. 半径 / 阴影 / 字号 / 行高 / 字距 / 模糊令牌统一加 --pg- 前缀，
+      避免覆盖 globals.css 中 Tailwind v4 @theme 的同名令牌
+      （--radius-*、--shadow-*、--blur-* 等），防止全站既有组件被连带改形。
+   2. 珍珠背景只在宽屏（≥601px）作用于 html/body；窄屏背景仍由
+      phone-shell.css 的移动媒体查询 + visualViewport 动态视口接管，
+      全面屏分层方案不受影响。
+   ========================================================= */
+
+/* =========================================================
+   ROOT TOKENS
+   ========================================================= */
+
+:root {
+  /* ---------- Core Colors ---------- */
+
+  --color-pearl: #F8F9FB;
+  --color-mist: #E8E8ED;
+  --color-silver: #D6D6DD;
+  --color-slate: #AEB5C0;
+  --color-graphite: #3B3F46;
+
+  /* ---------- Semantic Colors ---------- */
+
+  --color-bg: var(--color-pearl);
+  --color-bg-secondary: var(--color-mist);
+  --color-bg-tertiary: var(--color-silver);
+
+  --color-text-primary: var(--color-graphite);
+  --color-text-secondary: #666D77;
+  --color-text-tertiary: var(--color-slate);
+  --color-text-disabled: rgba(59, 63, 70, 0.34);
+
+  --color-icon-primary: #4B515B;
+  --color-icon-secondary: #7A828D;
+  --color-icon-muted: var(--color-slate);
+
+  --color-border-soft: rgba(255, 255, 255, 0.72);
+  --color-border-medium: rgba(214, 214, 221, 0.62);
+  --color-border-dark: rgba(59, 63, 70, 0.08);
+
+  /* ---------- Glass Surface Colors ---------- */
+
+  --glass-bg-light: rgba(248, 249, 251, 0.58);
+  --glass-bg-medium: rgba(248, 249, 251, 0.44);
+  --glass-bg-soft: rgba(232, 232, 237, 0.36);
+  --glass-bg-strong: rgba(248, 249, 251, 0.74);
+
+  --glass-highlight: rgba(255, 255, 255, 0.86);
+  --glass-highlight-soft: rgba(255, 255, 255, 0.48);
+
+  --glass-shadow-color: rgba(72, 82, 98, 0.10);
+  --glass-shadow-color-strong: rgba(72, 82, 98, 0.16);
+
+  /* ---------- Blur ---------- */
+
+  --pg-blur-xs: 8px;
+  --pg-blur-sm: 14px;
+  --pg-blur-md: 22px;
+  --pg-blur-lg: 30px;
+  --pg-blur-xl: 42px;
+
+  --glass-saturate: 135%;
+  --glass-brightness: 105%;
+
+  /* ---------- Border Radius ---------- */
+
+  --pg-radius-xs: 10px;
+  --pg-radius-sm: 14px;
+  --pg-radius-md: 18px;
+  --pg-radius-lg: 24px;
+  --pg-radius-xl: 30px;
+  --pg-radius-2xl: 38px;
+  --pg-radius-pill: 999px;
+
+  /* ---------- Shadows ---------- */
+
+  --pg-shadow-xs:
+    0 1px 2px rgba(67, 76, 91, 0.05),
+    0 4px 10px rgba(67, 76, 91, 0.04);
+
+  --pg-shadow-sm:
+    0 2px 5px rgba(67, 76, 91, 0.05),
+    0 10px 24px rgba(67, 76, 91, 0.07);
+
+  --pg-shadow-md:
+    0 3px 8px rgba(67, 76, 91, 0.05),
+    0 14px 32px rgba(67, 76, 91, 0.09);
+
+  --pg-shadow-lg:
+    0 6px 18px rgba(67, 76, 91, 0.07),
+    0 24px 56px rgba(67, 76, 91, 0.12);
+
+  --pg-shadow-glass-inset:
+    inset 0 1px 0 rgba(255, 255, 255, 0.90),
+    inset 0 -1px 0 rgba(120, 130, 145, 0.06);
+
+  --pg-shadow-glass-soft:
+    inset 0 1px 1px rgba(255, 255, 255, 0.88),
+    inset 0 -1px 0 rgba(120, 130, 145, 0.05),
+    0 8px 24px rgba(72, 82, 98, 0.08);
+
+  --pg-shadow-glass-raised:
+    inset 0 1px 1px rgba(255, 255, 255, 0.96),
+    inset 0 -1px 1px rgba(120, 130, 145, 0.06),
+    0 12px 30px rgba(72, 82, 98, 0.10),
+    0 2px 6px rgba(72, 82, 98, 0.04);
+
+  --pg-shadow-glass-hover:
+    inset 0 1px 1px rgba(255, 255, 255, 0.96),
+    inset 0 -1px 1px rgba(120, 130, 145, 0.05),
+    0 16px 36px rgba(72, 82, 98, 0.12),
+    0 3px 8px rgba(72, 82, 98, 0.05);
+
+  --pg-shadow-glass-pressed:
+    inset 0 2px 7px rgba(86, 96, 112, 0.12),
+    inset 0 1px 1px rgba(255, 255, 255, 0.68),
+    0 4px 12px rgba(72, 82, 98, 0.06);
+
+  /* ---------- Typography ---------- */
+
+  --pg-font-sans:
+    -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Display",
+    "SF Pro Text",
+    "Helvetica Neue",
+    "PingFang SC",
+    "Hiragino Sans GB",
+    "Noto Sans SC",
+    Arial,
+    sans-serif;
+
+  --pg-font-size-display: 64px;
+  --pg-font-size-h1: 32px;
+  --pg-font-size-h2: 24px;
+  --pg-font-size-h3: 20px;
+
+  --pg-font-size-body-lg: 17px;
+  --pg-font-size-body: 15px;
+  --pg-font-size-body-sm: 13px;
+
+  --pg-font-size-caption: 12px;
+  --pg-font-size-micro: 11px;
+
+  --font-weight-light: 300;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+
+  --pg-line-height-tight: 1.15;
+  --pg-line-height-normal: 1.45;
+  --pg-line-height-relaxed: 1.6;
+
+  --pg-letter-spacing-display: -0.055em;
+  --pg-letter-spacing-title: -0.035em;
+  --pg-letter-spacing-body: -0.015em;
+  --pg-letter-spacing-label: 0.14em;
+
+  /* ---------- Spacing ---------- */
+
+  --pg-space-1: 4px;
+  --pg-space-2: 8px;
+  --pg-space-3: 12px;
+  --pg-space-4: 16px;
+  --pg-space-5: 20px;
+  --pg-space-6: 24px;
+  --pg-space-7: 28px;
+  --pg-space-8: 32px;
+  --pg-space-10: 40px;
+  --pg-space-12: 48px;
+
+  /* ---------- Motion ---------- */
+
+  --duration-fast: 140ms;
+  --duration-normal: 220ms;
+  --duration-slow: 320ms;
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* ---------- Control Sizes ---------- */
+
+  --control-height-sm: 36px;
+  --control-height-md: 44px;
+  --control-height-lg: 52px;
+
+  --icon-size-sm: 16px;
+  --icon-size-md: 20px;
+  --icon-size-lg: 24px;
+
+  /* ---------- Layering ---------- */
+
+  --z-base: 1;
+  --z-card: 10;
+  --z-sticky: 50;
+  --z-overlay: 100;
+  --z-modal: 200;
+  --z-toast: 300;
+}
+
+
+/* =========================================================
+   GLOBAL RESET / BASE
+   ========================================================= */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+
+  color: var(--color-text-primary);
+  font-family: var(--pg-font-sans);
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 珍珠渐变背景仅用于宽屏桌面（含桌面端手机壳预览的外围）。
+   窄屏全面屏背景由 phone-shell.css 移动媒体查询接管，保持动态视口分层方案。 */
+@media (min-width: 601px) {
+  html,
+  body {
+    background:
+      radial-gradient(
+        circle at 20% 0%,
+        rgba(255, 255, 255, 0.96) 0%,
+        rgba(248, 249, 251, 0.90) 28%,
+        rgba(232, 232, 237, 0.92) 100%
+      );
+  }
+
+  body {
+    min-height: 100vh;
+  }
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+img,
+svg {
+  display: block;
+}
+
+
+/* =========================================================
+   APP BACKGROUND
+   ========================================================= */
+
+.app-background {
+  min-height: 100vh;
+
+  background:
+    radial-gradient(
+      circle at 18% 12%,
+      rgba(255, 255, 255, 0.98),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 86% 38%,
+      rgba(214, 214, 221, 0.76),
+      transparent 38%
+    ),
+    linear-gradient(
+      145deg,
+      #F8F9FB 0%,
+      #E8E8ED 52%,
+      #D6D6DD 100%
+    );
+}
+
+
+/* =========================================================
+   GLASS BACKGROUND
+   ========================================================= */
+
+.glass-bg {
+  position: relative;
+  overflow: hidden;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(248, 249, 251, 0.74),
+      rgba(232, 232, 237, 0.46)
+    );
+
+  backdrop-filter:
+    blur(var(--pg-blur-xl))
+    saturate(var(--glass-saturate))
+    brightness(var(--glass-brightness));
+
+  -webkit-backdrop-filter:
+    blur(var(--pg-blur-xl))
+    saturate(var(--glass-saturate))
+    brightness(var(--glass-brightness));
+
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  border-radius: var(--pg-radius-2xl);
+
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.78),
+    inset 0 -1px 0 rgba(140, 150, 165, 0.04),
+    0 20px 60px rgba(76, 87, 105, 0.08);
+}
+
+.glass-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+
+  background:
+    radial-gradient(
+      circle at 15% 5%,
+      rgba(255, 255, 255, 0.48),
+      transparent 32%
+    );
+
+  opacity: 0.9;
+}
+
+
+/* =========================================================
+   GLASS CARD
+   ========================================================= */
+
+.glass-card {
+  position: relative;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(248, 249, 251, 0.64),
+      rgba(232, 232, 237, 0.40)
+    );
+
+  backdrop-filter:
+    blur(var(--pg-blur-md))
+    saturate(138%);
+
+  -webkit-backdrop-filter:
+    blur(var(--pg-blur-md))
+    saturate(138%);
+
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--pg-radius-lg);
+
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.92),
+    inset 0 -1px 1px rgba(130, 140, 155, 0.05),
+    0 3px 8px rgba(70, 80, 95, 0.04),
+    0 14px 30px rgba(70, 80, 95, 0.08);
+
+  transition:
+    transform var(--duration-normal) var(--ease-out-soft),
+    background-color var(--duration-normal) var(--ease-out-soft),
+    box-shadow var(--duration-normal) var(--ease-out-soft),
+    border-color var(--duration-normal) var(--ease-out-soft);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .glass-card:hover {
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255, 255, 255, 0.72),
+        rgba(232, 232, 237, 0.48)
+      );
+
+    border-color: rgba(255, 255, 255, 0.90);
+
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.96),
+      inset 0 -1px 1px rgba(130, 140, 155, 0.05),
+      0 5px 10px rgba(70, 80, 95, 0.05),
+      0 18px 38px rgba(70, 80, 95, 0.10);
+
+    transform: translateY(-1px);
+  }
+}
+
+.glass-card:active {
+  transform: scale(0.988);
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(232, 232, 237, 0.58),
+      rgba(214, 214, 221, 0.42)
+    );
+
+  border-color: rgba(255, 255, 255, 0.70);
+
+  box-shadow:
+    inset 0 3px 8px rgba(80, 90, 105, 0.09),
+    inset 0 1px 1px rgba(255, 255, 255, 0.74),
+    0 4px 12px rgba(70, 80, 95, 0.05);
+}
+
+
+/* =========================================================
+   GLASS BUTTON
+   ========================================================= */
+
+.glass-btn {
+  position: relative;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  min-height: var(--control-height-md);
+  padding: 0 16px;
+
+  color: var(--color-text-primary);
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(248, 249, 251, 0.64),
+      rgba(214, 214, 221, 0.40)
+    );
+
+  border: 1px solid rgba(255, 255, 255, 0.76);
+  border-radius: var(--pg-radius-pill);
+
+  backdrop-filter:
+    blur(var(--pg-blur-md))
+    saturate(140%);
+
+  -webkit-backdrop-filter:
+    blur(var(--pg-blur-md))
+    saturate(140%);
+
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.96),
+    inset 0 -1px 1px rgba(120, 130, 145, 0.06),
+    0 8px 20px rgba(74, 84, 100, 0.09);
+
+  cursor: pointer;
+
+  transition:
+    transform var(--duration-fast) var(--ease-out-soft),
+    background-color var(--duration-normal) var(--ease-out-soft),
+    box-shadow var(--duration-normal) var(--ease-out-soft),
+    border-color var(--duration-normal) var(--ease-out-soft),
+    opacity var(--duration-fast) ease-out;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .glass-btn:hover {
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255, 255, 255, 0.80),
+        rgba(232, 232, 237, 0.55)
+      );
+
+    border-color: rgba(255, 255, 255, 0.96);
+
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 1),
+      inset 0 -1px 1px rgba(120, 130, 145, 0.05),
+      0 10px 26px rgba(74, 84, 100, 0.12);
+
+    transform: translateY(-1px);
+  }
+}
+
+.glass-btn:active {
+  transform: scale(0.965);
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(174, 181, 192, 0.48),
+      rgba(214, 214, 221, 0.54)
+    );
+
+  border-color: rgba(255, 255, 255, 0.74);
+
+  box-shadow:
+    inset 0 3px 9px rgba(70, 80, 95, 0.13),
+    inset 0 1px 1px rgba(255, 255, 255, 0.68),
+    0 4px 12px rgba(74, 84, 100, 0.06);
+}
+
+.glass-btn:focus-visible {
+  outline: none;
+
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.96),
+    0 0 0 3px rgba(174, 181, 192, 0.22),
+    0 10px 26px rgba(74, 84, 100, 0.10);
+}
+
+.glass-btn:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+  transform: none;
+}
+
+
+/* =========================================================
+   CIRCULAR BUTTONS
+   ========================================================= */
+
+.glass-btn--circle {
+  width: 56px;
+  height: 56px;
+  min-height: 56px;
+  padding: 0;
+
+  border-radius: 50%;
+}
+
+.glass-btn--circle-lg {
+  width: 64px;
+  height: 64px;
+  min-height: 64px;
+  padding: 0;
+
+  border-radius: 50%;
+}
+
+
+/* =========================================================
+   ACTIVE BUTTON STATE（手电筒开启 / 选中态）
+   ========================================================= */
+
+.glass-btn.is-active {
+  color: var(--color-pearl);
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(79, 87, 100, 0.78),
+      rgba(59, 63, 70, 0.68)
+    );
+
+  border-color: rgba(255, 255, 255, 0.42);
+
+  box-shadow:
+    inset 0 2px 8px rgba(20, 24, 30, 0.22),
+    inset 0 1px 1px rgba(255, 255, 255, 0.20),
+    0 10px 28px rgba(59, 63, 70, 0.16);
+}
+
+
+/* =========================================================
+   MODAL / DIALOG
+   ========================================================= */
+
+.glass-modal {
+  background:
+    linear-gradient(
+      150deg,
+      rgba(248, 249, 251, 0.82),
+      rgba(232, 232, 237, 0.66)
+    );
+
+  backdrop-filter:
+    blur(36px)
+    saturate(145%);
+
+  -webkit-backdrop-filter:
+    blur(36px)
+    saturate(145%);
+
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: 28px;
+
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.98),
+    inset 0 -1px 1px rgba(110, 120, 135, 0.06),
+    0 8px 20px rgba(72, 82, 98, 0.08),
+    0 32px 80px rgba(72, 82, 98, 0.18);
+}
+
+.glass-overlay {
+  background: rgba(80, 88, 100, 0.18);
+
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+
+/* =========================================================
+   SETTINGS GROUP / SETTINGS CELL
+   ========================================================= */
+
+.settings-group {
+  overflow: hidden;
+
+  background: rgba(248, 249, 251, 0.54);
+
+  border: 1px solid rgba(255, 255, 255, 0.70);
+  border-radius: var(--pg-radius-lg);
+
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.90),
+    0 12px 30px rgba(72, 82, 98, 0.07);
+}
+
+.settings-cell {
+  min-height: 54px;
+
+  display: flex;
+  align-items: center;
+
+  padding: 0 16px;
+
+  color: var(--color-text-primary);
+
+  transition:
+    background-color var(--duration-fast) ease-out,
+    transform var(--duration-fast) var(--ease-out-soft);
+}
+
+.settings-cell + .settings-cell {
+  border-top: 1px solid rgba(174, 181, 192, 0.18);
+}
+
+.settings-cell:active {
+  background: rgba(174, 181, 192, 0.16);
+}
+
+
+/* =========================================================
+   INPUTS / SEARCH FIELDS
+   ========================================================= */
+
+.glass-input {
+  width: 100%;
+  height: 46px;
+
+  padding: 0 15px;
+
+  color: var(--color-text-primary);
+
+  background: rgba(248, 249, 251, 0.46);
+
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  border-radius: 16px;
+
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.86),
+    inset 0 1px 4px rgba(70, 80, 95, 0.03);
+
+  outline: none;
+
+  transition:
+    border-color var(--duration-normal) ease-out,
+    background-color var(--duration-normal) ease-out,
+    box-shadow var(--duration-normal) ease-out;
+}
+
+.glass-input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.glass-input:focus {
+  background: rgba(248, 249, 251, 0.64);
+
+  border-color: rgba(255, 255, 255, 0.94);
+
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.92),
+    0 0 0 3px rgba(174, 181, 192, 0.15),
+    0 8px 20px rgba(72, 82, 98, 0.07);
+}
+
+
+/* =========================================================
+   DIVIDER
+   ========================================================= */
+
+.divider {
+  width: 100%;
+  height: 1px;
+
+  background: rgba(174, 181, 192, 0.20);
+}
+
+
+/* =========================================================
+   TYPOGRAPHY SYSTEM
+   ========================================================= */
+
+.text-display {
+  font-size: var(--pg-font-size-display);
+  line-height: 0.95;
+
+  font-weight: var(--font-weight-light);
+
+  letter-spacing: var(--pg-letter-spacing-display);
+
+  color: var(--color-text-primary);
+}
+
+.text-h1 {
+  font-size: var(--pg-font-size-h1);
+  line-height: 1.15;
+
+  font-weight: var(--font-weight-medium);
+
+  letter-spacing: -0.035em;
+
+  color: var(--color-text-primary);
+}
+
+.text-h2 {
+  font-size: var(--pg-font-size-h2);
+  line-height: 1.2;
+
+  font-weight: var(--font-weight-medium);
+
+  letter-spacing: -0.03em;
+
+  color: var(--color-text-primary);
+}
+
+.text-h3 {
+  font-size: var(--pg-font-size-h3);
+  line-height: 1.25;
+
+  font-weight: var(--font-weight-medium);
+
+  letter-spacing: -0.025em;
+
+  color: var(--color-text-primary);
+}
+
+.text-body-lg {
+  font-size: var(--pg-font-size-body-lg);
+  line-height: 1.5;
+
+  font-weight: var(--font-weight-regular);
+
+  letter-spacing: -0.015em;
+
+  color: var(--color-text-secondary);
+}
+
+.text-body {
+  font-size: var(--pg-font-size-body);
+  line-height: 1.5;
+
+  font-weight: var(--font-weight-regular);
+
+  letter-spacing: -0.012em;
+
+  color: var(--color-text-secondary);
+}
+
+.text-body-strong {
+  font-size: var(--pg-font-size-body);
+  line-height: 1.45;
+
+  font-weight: var(--font-weight-medium);
+
+  color: var(--color-text-primary);
+}
+
+.text-body-sm {
+  font-size: var(--pg-font-size-body-sm);
+  line-height: 1.45;
+
+  font-weight: var(--font-weight-regular);
+
+  color: var(--color-text-secondary);
+}
+
+.text-caption {
+  font-size: var(--pg-font-size-caption);
+  line-height: 1.4;
+
+  font-weight: var(--font-weight-regular);
+
+  letter-spacing: 0.005em;
+
+  color: var(--color-text-tertiary);
+}
+
+.text-label {
+  font-size: var(--pg-font-size-micro);
+  line-height: 1.2;
+
+  font-weight: var(--font-weight-medium);
+
+  letter-spacing: var(--pg-letter-spacing-label);
+
+  text-transform: uppercase;
+
+  color: var(--color-text-tertiary);
+}
+
+
+/* =========================================================
+   GENERIC INTERACTION CLASS
+   ========================================================= */
+
+.interactive {
+  transition:
+    transform 180ms var(--ease-out-soft),
+    background-color 220ms var(--ease-out-soft),
+    box-shadow 220ms var(--ease-out-soft),
+    border-color 220ms var(--ease-out-soft),
+    opacity 180ms ease-out;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .interactive:hover {
+    transform: translateY(-1px);
+  }
+}
+
+.interactive:active {
+  transform: scale(0.975);
+}
+
+
+/* =========================================================
+   OPTIONAL UTILITY STATES
+   ========================================================= */
+
+.is-muted {
+  color: var(--color-text-tertiary);
+}
+
+.is-disabled {
+  opacity: 0.42;
+  pointer-events: none;
+}
+
+.is-elevated {
+  box-shadow: var(--pg-shadow-glass-raised);
+}
+
+.is-soft {
+  box-shadow: var(--pg-shadow-glass-soft);
+}
+
+
+/* =========================================================
+   ACCESSIBILITY / REDUCED MOTION
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

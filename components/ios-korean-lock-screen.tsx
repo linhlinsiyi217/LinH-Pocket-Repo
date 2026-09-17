@@ -8,8 +8,6 @@ import {
   Heart,
   Leaf,
   LockKeyhole,
-  Signal,
-  Wifi,
   Cloud,
   Flower2,
 } from "lucide-react";
@@ -37,21 +35,13 @@ export default function IOSKoreanLockScreen({ onUnlock }: { onUnlock?: () => voi
   const startY = useRef<number | null>(null);
 
   const [time, setTime] = useState(() =>
-    new Intl.DateTimeFormat("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: false,
-    }).format(new Date())
+    new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false })
   );
 
   useEffect(() => {
     const timer = setInterval(() => {
       setTime(
-        new Intl.DateTimeFormat("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-          hour12: false,
-        }).format(new Date())
+        new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false })
       );
     }, 1000);
 
@@ -198,45 +188,34 @@ export default function IOSKoreanLockScreen({ onUnlock }: { onUnlock?: () => voi
         {/* subtle top haze */}
         <div className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-white/20 to-transparent" />
 
-        {/* status bar */}
-        <header className="ios-lock-statusbar relative z-20 flex h-[54px] items-center justify-between px-7 pt-2 text-[13px] font-semibold text-[#252932]">
-          <span>{time}</span>
-
-          <div className="flex items-center gap-2">
-            <Signal className="h-[15px] w-[15px]" strokeWidth={2.6} />
-            <Wifi className="h-[16px] w-[16px]" strokeWidth={2.5} />
-
-            <div className="flex items-center gap-1 rounded-[5px]">
-              <BatteryFull className="h-[20px] w-[20px]" strokeWidth={2.2} />
-              <span className="text-[10px]">100</span>
-            </div>
+        {/* status bar —— 与主界面 desktop-shell 的 phone-status-bar 完全同款
+            （相同类名、相同 SVG、相同 CSS 变量；仅外层卡片做安全区偏移） */}
+        <header className="phone-status-bar ios-lock-phone-status-bar">
+          <span className="status-time">{time}</span>
+          <div className="status-island" />
+          <div className="status-right" aria-hidden>
+            <svg viewBox="0 0 72 51" className="status-signal" fill="currentColor">
+              <path d="M11.6,41.9c0,1.4,0,2.8,0,4.3c0,2.3-1.4,3.7-3.6,3.8c-1.5,0.1-3,0.1-4.4,0c-1.9-0.1-3.2-1.2-3.4-3c-0.3-3.4-0.2-6.8,0-10.1c0.1-1.8,1.5-3,3.3-3.1c1.5-0.1,3-0.1,4.4,0c2.2,0.1,3.6,1.5,3.7,3.8C11.6,39,11.6,40.5,11.6,41.9z" />
+              <path d="M31.7,36.9c0,2.8,0,5.7,0,8.5c0,3.5-1.1,4.6-4.5,4.6c-1.2,0-2.4,0-3.6,0c-2-0.1-3.4-1.5-3.4-3.4c-0.1-6.5-0.1-13,0-19.6c0-1.9,1.6-3.4,3.6-3.5c1.4-0.1,2.7,0,4.1,0c2.3,0.1,3.8,1.4,3.8,3.8C31.8,30.5,31.7,33.7,31.7,36.9z" />
+              <path d="M40.4,30.3c0-5,0-10.1,0-15.1c0-3,1.2-4.2,4.2-4.2c1,0,2,0,3,0c2.9,0,4.2,1.4,4.2,4.2c0,9,0,17.9,0,26.9c0,1.4,0,2.7,0,4.1c0,2.3-1.4,3.8-3.7,3.8c-1.3,0-2.6,0-3.9,0c-2.5-0.1-3.8-1.3-3.8-3.9C40.4,40.9,40.4,35.6,40.4,30.3z" />
+              <path d="M72,25.7c0,6.6,0,13.3,0,19.9c0,3.2-1.2,4.4-4.4,4.4c-1.1,0-2.3,0-3.4,0c-2.3-0.1-3.7-1.4-3.8-3.8c0-2.9,0-5.8,0-8.7c0-10.6,0-21.2,0-31.8c0-3.3,1.2-4.5,4.5-4.5c0.9,0,1.8,0,2.7,0c3.1,0,4.4,1.3,4.4,4.5C72,12.3,72,19,72,25.7z" />
+            </svg>
+            <svg viewBox="98 0 67 51" className="status-wifi" fill="currentColor">
+              <path d="M134.6,0c9.8,0.1,20.4,4.8,29.2,13.7c1.6,1.6,1.6,2.1,0,3.8c-0.8,0.8-1.6,1.6-2.3,2.5c-1.1,1.3-2.1,1.2-3.3,0c-3.5-3.7-7.6-6.5-12.3-8.6c-13-5.6-28.3-2.7-38.7,7.3c-0.5,0.5-0.9,0.9-1.4,1.4c-1,1.1-2,1.1-3-0.1c-0.9-1.1-2-2-3-3.1c-0.9-0.9-0.9-1.8,0-2.8C107.7,5.4,119.9,0,134.6,0z" />
+              <path d="M132.1,13.9c8.9,0.2,16.5,3.5,22.8,9.8c1.1,1.1,1.1,2.1,0,3.2c-0.9,0.9-1.8,1.9-2.7,2.8c-1.1,1.2-2,1.1-3.1,0c-3.9-3.9-8.6-6.3-14.1-6.9c-7.5-0.9-13.9,1.5-19.4,6.5c-1.9,1.8-2.1,1.8-3.9,0c-0.8-0.8-1.6-1.7-2.5-2.6c-1.1-1-1-2,0-3C115.5,17.5,123.1,14.1,132.1,13.9z" />
+              <path d="M131.9,27.8c5.4,0.1,9.8,2,13.6,5.5c1.1,1,1.2,2,0.1,3c-0.9,0.9-1.9,1.8-2.7,2.8c-1.1,1.4-2.1,1.3-3.4,0.2c-3.6-3-7.7-3.7-12.1-1.9c-1.3,0.5-2.4,1.3-3.4,2.2c-0.9,0.8-1.8,0.9-2.6-0.1c-1.1-1.1-2.1-2.2-3.2-3.3c-0.9-1-0.8-1.8,0.1-2.8C122.2,29.8,126.8,27.9,131.9,27.8z" />
+              <path d="M132,41.6c1.8,0,3.5,0.5,5,1.6c0.9,0.6,1.1,1.3,0.2,2.2c-1.5,1.5-2.9,2.9-4.4,4.4c-0.7,0.7-1.2,0.6-1.8,0c-1.5-1.6-2.9-3.1-4.4-4.6c-0.7-0.8-0.5-1.3,0.2-1.9C128.4,42.1,130.1,41.5,132,41.6z" />
+            </svg>
+            <svg viewBox="0 0 26 12" className="status-battery" fill="currentColor">
+              <rect x="0.5" y="0.5" width="22" height="11" rx="2.6" fill="none" stroke="currentColor" strokeOpacity="0.42" strokeWidth="1" />
+              <rect x="22.7" y="4" width="1.8" height="4" rx="0.7" opacity="0.42" />
+              <rect x="2" y="2" width="14" height="8" rx="1.5" />
+            </svg>
           </div>
         </header>
 
-        {/* island */}
-        <div
-          className="
-            ios-lock-island
-            absolute
-            left-1/2
-            top-[15px]
-            z-30
-            flex
-            h-[34px]
-            w-[126px]
-            -translate-x-1/2
-            items-center
-            justify-center
-            rounded-full
-            bg-black
-            shadow-[inset_0_1px_1px_rgba(255,255,255,.12)]
-          "
-        >
-          <LockKeyhole className="h-[11px] w-[11px] text-white/90" />
-        </div>
-
         {/* main lock content */}
-        <section className="relative z-10 flex flex-col items-center px-5">
+        <section className="ios-lock-content relative z-10 flex flex-col items-center px-5">
           <p className="mt-[48px] text-[18px] font-medium tracking-[-0.035em] text-[#444953]">
             Thu 1 Jan
           </p>
@@ -475,41 +454,16 @@ function RoundButton({
   onClick?: () => void;
   ariaLabel?: string;
 }) {
+  // 直接使用 Pearl Glass 的圆形玻璃按钮：
+  // :active 由设计系统统一给 scale(0.965) 物理回弹；
+  // is-active（手电筒开启）变深并带内发光，无需调用任何硬件 API。
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={ariaLabel}
-      className={`
-        grid
-        h-[61px]
-        w-[61px]
-        place-items-center
-        rounded-full
-        border
-        backdrop-blur-[24px]
-        transition-[transform,background-color,box-shadow,border-color]
-        duration-200
-        ease-out
-        active:scale-[0.91]
-
-        ${
-          active
-            ? `
-              border-white/90
-              bg-[#69717e]/65
-              text-white
-              shadow-[inset_0_2px_10px_rgba(0,0,0,.14),0_10px_30px_rgba(62,72,88,.18)]
-            `
-            : `
-              border-white/75
-              bg-white/26
-              text-[#505762]
-              shadow-[inset_0_1px_1px_rgba(255,255,255,.9),0_10px_30px_rgba(80,92,110,.12)]
-              hover:bg-white/38
-            `
-        }
-      `}
+      aria-pressed={active}
+      className={`glass-btn glass-btn--circle ios-lock-round ${active ? "is-active" : ""}`}
     >
       {children}
     </button>

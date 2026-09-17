@@ -80,8 +80,8 @@ export function UpdateNotice() {
   if (!mounted || !open) return null;
 
   return (
-    <div className="update-overlay" data-ui="modal" onClick={handleKnow}>
-      <div className="update-dialog" data-ui="modal-dialog" onClick={(e) => e.stopPropagation()}>
+    <div className="update-overlay glass-overlay" data-ui="modal" onClick={handleKnow}>
+      <div className="update-dialog glass-modal" data-ui="modal-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="update-dialog-handle" aria-hidden />
         <div className="update-dialog-head">
           <span className="update-dialog-title">更新日志</span>
