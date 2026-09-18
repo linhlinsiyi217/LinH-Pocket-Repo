@@ -8,10 +8,12 @@ export type SupabaseRestResult<T> =
   | { ok: false; error: string; status: number };
 
 export function getSupabaseServerConfig(): SupabaseConfig | null {
-  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
+  // trim 兜底：平台后台或 .env.local 里误填空格/换行时，按「未配置」处理
+  //（返回 null → 调用方统一 503/隐藏功能），而不是拿空白 URL 去 fetch 出玄学网络错。
+  const url = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "").trim();
+  const key = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || "").trim();
   if (!url || !key) return null;
-  return { url: url.replace(/\/$/, ""), key };
+  return { url: url.replace(/\/+$/, ""), key };
 }
 
 export function formatSupabaseRestError(err: unknown): string {

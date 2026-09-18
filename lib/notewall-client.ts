@@ -135,8 +135,13 @@ export async function deleteNoteWallComment(id: string, actorId?: string): Promi
 }
 
 function getRealtimeConfig(): { url: string; anonKey: string } | null {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  // trim 兜底：误填空格/换行时按「未配置」处理，退化为手动刷新，避免 new URL 抛错。
+  const url = (process.env.NEXT_PUBLIC_SUPABASE_URL || "").trim();
+  const anonKey = (
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+    || ""
+  ).trim();
   if (!url || !anonKey) return null;
   return { url, anonKey };
 }
