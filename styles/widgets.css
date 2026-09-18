@@ -150,8 +150,10 @@
    still reads as frosted; the real blur snaps back ~360ms after the last change.
    data-glass-busy is toggled directly on the shell (no React re-render). */
 .phone-shell[data-glass-busy="1"][data-widget-effect="glass"] .widget-glass:not(.widget-freestyle) > div:not(.wg-ios-menu):not(.wg-large-time):not(.wg-mood-pill) {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+  /* initial（=none）而非字面 none：生产 CSS 压缩器会把"初始值声明"整段裁掉，
+     导致该冻结规则在 Vercel 构建上实际失效（0.8.0/T3 实测发现）。 */
+  backdrop-filter: initial !important;
+  -webkit-backdrop-filter: initial !important;
   will-change: auto !important;
   /* 替代磨砂底：实时 blur 关闭期间用静态白雾渐变顶住观感（纯 background，
      无滤镜无混合，GPU 成本≈0），不再"光秃秃"；松手约 360ms 后真玻璃回归。 */

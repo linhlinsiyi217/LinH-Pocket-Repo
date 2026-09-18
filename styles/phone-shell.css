@@ -346,10 +346,11 @@
    data-glass-busy 策略；半透明底仍在，观感不掉，松手 ~360ms 真玻璃回归）。
    选择器带 .icon-grid 一层以压过 data-glass-pass 的同优先级规则。 */
 .phone-shell[data-glass-busy="1"][data-icon-effect="glass"] .icon-grid .icon-glyph-box {
-  /* !important 与 widgets.css 的 data-glass-busy 规则同款：也防止生产压缩器
-     把 "初始值 none" 声明当作无效规则裁掉。 */
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+  /* 用 initial（=none）而非字面 none：生产压缩器会把"初始值声明"整段裁掉
+     （widgets.css 同款历史规则即被裁，只剩白雾兜底）；initial 不被裁且
+     !important 可压过 glass-pass 与基础 blur 规则。 */
+  backdrop-filter: initial !important;
+  -webkit-backdrop-filter: initial !important;
 }
 
 /* ── Icon grid ── */
