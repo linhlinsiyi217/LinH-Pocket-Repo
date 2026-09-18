@@ -36,6 +36,22 @@ const nextConfig = {
   outputFileTracingIncludes: {
     "/api/**": ["./data/**"],
   },
+  experimental: {
+    // 拆分 barrel export 包：让 Next 只编译实际用到的具名导出，
+    // 避免 lucide-react / @phosphor-icons 等图标库整包进入首次编译。
+    optimizePackageImports: [
+      "lucide-react",
+      "@phosphor-icons/react",
+      "@heroicons/react",
+      "@mdi/js",
+      "d3-delaunay",
+      "react-markdown",
+      "rehype-raw",
+      "remark-gfm",
+      "remark-breaks",
+      "remark-cjk-friendly",
+    ],
+  },
   webpack: (config, { isServer, webpack }) => {
     if (!isServer) {
       // @gltf-transform/core 的 dist 引用 node:fs / node:path(带 node: 前缀),
