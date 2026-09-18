@@ -1209,6 +1209,9 @@
   flex-direction: column;
   overflow-y: auto;
   overflow-x: hidden;
+  /* v0.8.0/T3：iOS 惯性滚动 + 滚动链收敛到容器，避免 App 内列表滚穿到桌面手势。 */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   padding-bottom: 0;
   min-height: 0;
   background: var(--c-page-body-bg);

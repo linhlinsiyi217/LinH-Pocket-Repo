@@ -164,6 +164,22 @@ const DOCK_PAGE_KEY = "dock" as const;
 type DragPageKey = DesktopPageKey | typeof DOCK_PAGE_KEY;
 const SWIPE_THRESHOLD_RATIO = 0.2;
 const SWIPE_MIN_THRESHOLD = 60;
+// ── v0.8.0/T3 桌面分页滑动手感（settle 时长/曲线与 .phone-swipe-layer CSS 同源）──
+// 速度采样 ring buffer 容量：覆盖最近约 6 帧（~100ms）轨迹，足够稳又不滞后。
+const SWIPE_VELOCITY_SAMPLES = 6;
+// 短距快甩翻页：|瞬时速度| ≥ 0.5px/ms（≈500px/s）且位移 ≥ 24px，防止抖动误触。
+const SWIPE_FLICK_VELOCITY = 0.5;
+const SWIPE_FLICK_MIN_PX = 24;
+// 边界橡皮筋线性阻尼（越小越"韧"）。
+const SWIPE_RUBBER_RATIO = 0.3;
+
+/** 读取滑动层当前的视觉横向位移（含 settle 动画中途值），供"连甩不跳变"锚定起点。 */
+function readLayerTranslateX(el: HTMLElement): number {
+  const raw = getComputedStyle(el).transform;
+  if (!raw || raw === "none") return 0;
+  const matrix = new DOMMatrixReadOnly(raw);
+  return Number.isFinite(matrix.m41) ? matrix.m41 : 0;
+}
 
 function parseColorAlpha(value: string): { hex: string; alpha: number } {
   const rgbaMatch = value.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+))?\s*\)/);
@@ -1186,7 +1202,27 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
     deltaX: number;
     locked: "x" | "y" | null;
     pointerId: number | null;
-  }>({ startX: 0, startY: 0, deltaX: 0, locked: null, pointerId: null });
+    // v0.8.0/T3：页宽只在 pointerdown / resize 时测量，拖动帧内禁止布局读取。
+    pageWidth: number;
+    // pointerdown 瞬间滑动层的视觉位移（可能处于上一次 settle 中途）→ 连甩无跳变。
+    anchorVisualX: number;
+    // 最近指针轨迹 ring buffer，用于松手时的 flick 速度判定。
+    samples: { x: number; t: number }[];
+    // 单 rAF 合帧：move 只更新待写值，真正的 --swipe-drag 写入每帧最多一次。
+    pendingDrag: number | null;
+    rafId: number | null;
+  }>({
+    startX: 0,
+    startY: 0,
+    deltaX: 0,
+    locked: null,
+    pointerId: null,
+    pageWidth: 390,
+    anchorVisualX: 0,
+    samples: [],
+    pendingDrag: null,
+    rafId: null
+  });
   const swipeLayerRef = useRef<HTMLDivElement | null>(null);
 
   // ── Edit mode (long-press drag) ──
@@ -3499,7 +3535,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
    * during reflow; we toggle a DOM attribute directly (no React state) so it
    * doesn't itself trigger a re-render, then let the blur snap back when idle.
    */
-  function suspendGlass(): void {
+  const suspendGlass = useCallback((): void => {
     const el = shellRef.current;
     if (!el) return;
     el.setAttribute("data-glass-busy", "1");
@@ -3508,7 +3544,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
       shellRef.current?.removeAttribute("data-glass-busy");
       glassBusyTimerRef.current = 0;
     }, 360);
-  }
+  }, []);
 
   function handleWidgetsChange(next: WidgetInstance[]): void {
     suspendGlass();
@@ -3722,10 +3758,33 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
     return swipeLayerRef.current?.getBoundingClientRect().width || shellRef.current?.getBoundingClientRect().width || 390;
   }, []);
 
+  // 页宽只允许在 pointerdown 与 resize 时测量（拖动帧内零布局读取）。
+  useEffect(() => {
+    const updatePageWidth = () => {
+      swipeRef.current.pageWidth = getSwipePageWidth();
+    };
+    updatePageWidth();
+    window.addEventListener("resize", updatePageWidth);
+    return () => window.removeEventListener("resize", updatePageWidth);
+  }, [getSwipePageWidth]);
+
   // Live finger offset while dragging — a transient CSS var so moving doesn't
   // re-render. Releasing sets it back to 0 and the CSS transition settles the page.
   const setSwipeDrag = useCallback((px: number) => {
     swipeLayerRef.current?.style.setProperty("--swipe-drag", `${px}px`);
+  }, []);
+
+  // 单 rAF 调度：pointermove 触发频率可能高于刷新率，这里把同一帧内的多次
+  // move 合并为一次 --swipe-drag 写入；滑动主路径全程零 setState / 零布局读取。
+  const flushSwipeDrag = useCallback(() => {
+    const s = swipeRef.current;
+    if (s.rafId !== null || s.pendingDrag === null) return;
+    s.rafId = window.requestAnimationFrame(() => {
+      s.rafId = null;
+      const next = s.pendingDrag;
+      s.pendingDrag = null;
+      swipeLayerRef.current?.style.setProperty("--swipe-drag", `${next}px`);
+    });
   }, []);
 
   const handleSwipeStart = useCallback((e: React.PointerEvent) => {
@@ -3737,14 +3796,27 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
     }
     // Start swipe tracking (works in both normal and edit mode)
     const s = swipeRef.current;
+    const layer = swipeLayerRef.current;
     s.startX = e.clientX;
     s.startY = e.clientY;
     s.deltaX = 0;
     s.locked = null;
     s.pointerId = e.pointerId;
+    // pointerdown 时缓存页宽；并记录滑动层此刻的视觉位移——若上一次 settle
+    // 还在途中（连甩），本次拖动从视觉位置 1:1 接续，不会瞬间吸到目标页。
+    s.pageWidth = getSwipePageWidth();
+    s.anchorVisualX = layer ? readLayerTranslateX(layer) : 0;
+    s.samples.length = 0;
+    s.pendingDrag = null;
+    if (s.rafId !== null) {
+      window.cancelAnimationFrame(s.rafId);
+      s.rafId = null;
+    }
     // Suppress the settle transition for 1:1 finger tracking while dragging.
-    swipeLayerRef.current?.classList.add("phone-swipe-dragging");
-  }, [activeApp, editMode]);
+    layer?.classList.add("phone-swipe-dragging");
+    // 拖动期冻结玻璃 backdrop 模糊采样（GPU 最大头），松手 ~360ms 后回归。
+    suspendGlass();
+  }, [activeApp, editMode, getSwipePageWidth, suspendGlass]);
 
   // ── 状态栏颜色自适应：检测当前背景亮度 ──
   useEffect(() => {
@@ -3843,19 +3915,23 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
 
     if (s.locked !== "x") return;
 
-    // Compute the pixel position from the committed page + finger delta, with
-    // rubber-banding past the first/last page, then express it as an offset from
-    // the current page's base (= the --swipe-drag CSS var).
-    const pageWidth = getSwipePageWidth();
+    // Compute the visual position from the down-anchor + finger delta, with
+    // rubber-banding past the first/last page, then express it as an offset
+    // from the current page's base (= the --swipe-drag CSS var).
+    // 注意：pageWidth 用 pointerdown 缓存值，这里不读布局；写入经 rAF 合帧。
+    const pageWidth = s.pageWidth;
     const page = currentPageIndexRef.current;
-    let translateX = -page * pageWidth + dx;
-    const minTranslateX = -Math.max(0, pageCount - 1) * pageWidth;
-    if (translateX > 0) translateX *= 0.25;
-    if (translateX < minTranslateX) translateX = minTranslateX + (translateX - minTranslateX) * 0.25;
+    let visualX = s.anchorVisualX + dx;
+    const minVisualX = -Math.max(0, pageCount - 1) * pageWidth;
+    if (visualX > 0) visualX *= SWIPE_RUBBER_RATIO;
+    if (visualX < minVisualX) visualX = minVisualX + (visualX - minVisualX) * SWIPE_RUBBER_RATIO;
 
     s.deltaX = dx;
-    setSwipeDrag(translateX + page * pageWidth);
-  }, [editMode, getSwipePageWidth, pageCount, setSwipeDrag]);
+    s.samples.push({ x: e.clientX, t: e.timeStamp });
+    if (s.samples.length > SWIPE_VELOCITY_SAMPLES) s.samples.shift();
+    s.pendingDrag = visualX + page * pageWidth;
+    flushSwipeDrag();
+  }, [editMode, pageCount, flushSwipeDrag]);
 
   const handleSwipeEnd = useCallback((e: React.PointerEvent) => {
     // Clear long-press
@@ -3889,23 +3965,53 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
     if (s.pointerId === null || s.pointerId !== e.pointerId) return;
     s.pointerId = null;
 
+    // 取消尚未落地的拖动帧；若 rAF 已排队，直接以最终手指位置补写一次，
+    // 保证视觉与 velocity 计算输入一致。
+    if (s.rafId !== null) {
+      window.cancelAnimationFrame(s.rafId);
+      s.rafId = null;
+      if (s.pendingDrag !== null) {
+        swipeLayerRef.current?.style.setProperty("--swipe-drag", `${s.pendingDrag}px`);
+      }
+    }
+    s.pendingDrag = null;
+
     const dx = s.deltaX;
     s.deltaX = 0;
-    const pageWidth = getSwipePageWidth();
+
+    // Flick velocity from the ring buffer: span / span-time over the most recent
+    // samples (px/ms). 短距快甩与长距慢拖走不同翻页判据。
+    let velocityX = 0;
+    if (s.samples.length >= 2) {
+      const first = s.samples[0];
+      const last = s.samples[s.samples.length - 1];
+      const dt = last.t - first.t;
+      if (dt > 0) velocityX = (last.x - first.x) / dt;
+    }
+    s.samples.length = 0;
+
+    const pageWidth = s.pageWidth;
     const swipeThreshold = Math.max(SWIPE_MIN_THRESHOLD, pageWidth * SWIPE_THRESHOLD_RATIO);
+    const lastPage = Math.max(0, pageCount - 1);
+    const isFlick = Math.abs(velocityX) >= SWIPE_FLICK_VELOCITY && Math.abs(dx) >= SWIPE_FLICK_MIN_PX;
 
     const page = currentPageIndexRef.current;
     let targetPageIndex = page;
-    if (Math.abs(dx) > swipeThreshold) {
-      targetPageIndex = Math.min(Math.max(0, pageCount - 1), Math.max(0, page + (dx < 0 ? 1 : -1)));
+    if (isFlick) {
+      // 短距快甩：按速度方向翻页（首尾页夹取 → 边界自然回弹）。
+      targetPageIndex = Math.min(lastPage, Math.max(0, page + (velocityX < 0 ? 1 : -1)));
+    } else if (Math.abs(dx) > swipeThreshold) {
+      // 长距慢拖：沿用距离阈值。
+      targetPageIndex = Math.min(lastPage, Math.max(0, page + (dx < 0 ? 1 : -1)));
     }
 
     // Re-enable the transition, clear the finger offset, and commit the page.
     // currentPageIndex is the single source of truth → CSS settles to it, no race.
-    swipeLayerRef.current?.classList.remove("phone-swipe-dragging");
+    // 续期玻璃冻结：settle（300ms）期间继续省 GPU，~360ms 后真模糊回归。
+    suspendGlass();
     setSwipeDrag(0);
     if (targetPageIndex !== page) setCurrentPageIndex(targetPageIndex);
-  }, [editMode, getSwipePageWidth, pageCount, setSwipeDrag]);
+  }, [editMode, pageCount, setSwipeDrag, suspendGlass]);
 
   const handleCloseXiaohongshu = useCallback((isBusy?: boolean) => {
     const shouldKeepMounted = isBusy ?? xiaohongshuBusy;
