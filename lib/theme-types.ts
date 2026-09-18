@@ -63,6 +63,22 @@ export type ThemeProfile = {
   // 全局外观：主色调（"" = 跟随系统默认）与日/夜间模式
   accentColor: string;
   colorMode: "light" | "dark";
+  // ── 0.8.0 Appearance 扩展（version 保持 2；老配置读取时由 normalize 自动补齐） ──
+  // 锁屏壁纸："pearl"=内置中性 Pearl/Obsidian 底；"follow"=跟随桌面壁纸；"custom"=独立资产
+  lockWallpaperMode: "pearl" | "follow" | "custom";
+  lockWallpaperAssetId: string | null;
+  lockWallpaperBlur: number;
+  lockWallpaperOpacity: number;
+  lockWallpaperScale: number;
+  lockWallpaperX: number;
+  lockWallpaperY: number;
+  // Pearl Glass 玻璃强度系数（0.6~1.4），Appearance Bridge 映射到 --pearl-glass-strength
+  pearlGlassStrength: number;
+  // 图标/小组件外观："auto"=随明暗模式选默认材质；另两值为用户显式覆盖
+  iconAppearance: "auto" | "glass" | "mono";
+  widgetAppearance: "auto" | "glass" | "editorial";
+  // 桌面壁纸亮度系数（0.5~1.2），仅作用于用户壁纸层，不改原始资产
+  wallpaperBrightness: number;
   updatedAt: string;
 };
 
@@ -190,6 +206,17 @@ export const DEFAULT_THEME_PROFILE: ThemeProfile = {
   globalBorderColor: "#000000",
   accentColor: "",
   colorMode: "light",
+  lockWallpaperMode: "pearl",
+  lockWallpaperAssetId: null,
+  lockWallpaperBlur: 0,
+  lockWallpaperOpacity: 0.9,
+  lockWallpaperScale: 100,
+  lockWallpaperX: 50,
+  lockWallpaperY: 50,
+  pearlGlassStrength: 1,
+  iconAppearance: "auto",
+  widgetAppearance: "auto",
+  wallpaperBrightness: 1,
   updatedAt: new Date().toISOString()
 };
 
@@ -285,6 +312,19 @@ function dedupeById<T extends { id: string }>(items: T[]): T[] {
     result.push(item);
   }
   return result;
+}
+
+/** 0.8.0 数值外观字段统一校验：非有限数回落默认值，并夹紧到 [min,max]；round 控制小数位。 */
+function clampNumber(
+  raw: unknown,
+  min: number,
+  max: number,
+  fallback: number,
+  round = 0
+): number {
+  if (typeof raw !== "number" || !isFinite(raw)) return fallback;
+  const factor = 10 ** round;
+  return Math.min(max, Math.max(min, Math.round(raw * factor) / factor));
 }
 
 export function normalizeThemeProfile(raw: unknown): ThemeProfile {
@@ -391,6 +431,31 @@ export function normalizeThemeProfile(raw: unknown): ThemeProfile {
   // ── Global appearance: accent color + light/dark mode ──
   base.accentColor = normalizeAccentHex(source.accentColor) ?? "";
   base.colorMode = source.colorMode === "dark" ? "dark" : "light";
+
+  // ── 0.8.0 Appearance 扩展：逐项白名单校验，非法/缺失回落到 DEFAULT（老配置零丢失） ──
+  base.lockWallpaperMode =
+    source.lockWallpaperMode === "follow" || source.lockWallpaperMode === "custom"
+      ? source.lockWallpaperMode
+      : "pearl";
+  base.lockWallpaperAssetId =
+    typeof source.lockWallpaperAssetId === "string" && source.lockWallpaperAssetId.trim()
+      ? source.lockWallpaperAssetId
+      : null;
+  base.lockWallpaperBlur = clampNumber(source.lockWallpaperBlur, 0, 24, 0);
+  base.lockWallpaperOpacity = clampNumber(source.lockWallpaperOpacity, 0, 1, 0.9, 3);
+  base.lockWallpaperScale = clampNumber(source.lockWallpaperScale, 10, 200, 100);
+  base.lockWallpaperX = clampNumber(source.lockWallpaperX, 0, 100, 50);
+  base.lockWallpaperY = clampNumber(source.lockWallpaperY, 0, 100, 50);
+  base.pearlGlassStrength = clampNumber(source.pearlGlassStrength, 0.6, 1.4, 1, 2);
+  base.iconAppearance =
+    source.iconAppearance === "glass" || source.iconAppearance === "mono"
+      ? source.iconAppearance
+      : "auto";
+  base.widgetAppearance =
+    source.widgetAppearance === "glass" || source.widgetAppearance === "editorial"
+      ? source.widgetAppearance
+      : "auto";
+  base.wallpaperBrightness = clampNumber(source.wallpaperBrightness, 0.5, 1.2, 1, 2);
 
   // ── Migrate enableGlobalShadows → cssOverrides["--desktop-global-shadow"] ──
   if (!base.cssOverrides["--desktop-global-shadow"]) {

@@ -57,12 +57,27 @@
   --c-transfer-text: #96610a;
   --c-overlay: rgba(0, 0, 0, 0.35);
 
-  /* ── 桌面系统图标专属配色（实心） ── */
-  --c-desktop-icon: #ffffff;
+  /* ── 桌面系统图标专属配色（v0.8.0 Pearl Glass · 中性默认） ── */
+  /* 亮色：墨炭 glyph + 珍珠白半透玻璃面，保证在任意壁纸上的对比度；
+     glyph 色随 data-color-mode 在 color-mode.css 中重映射，不使用反色。 */
+  --c-desktop-icon: #292d33;
   /* 玻璃图标染色：默认中性珍珠白（无彩），由主题引擎在用户选择主色时
      覆盖为种子色；高级桌面定制器的显式自定义仍以 .phone-shell 作用域优先生效。 */
   --c-desktop-icon-bg: #ffffff;
-  --c-desktop-icon-box: rgba(255, 255, 255, 0.01);
+  --c-desktop-icon-box: rgba(255, 255, 255, 0.58);
+
+  /* ── v0.8.0 中性灰阶色板（Pearl Light → Obsidian Dark 共用语义） ──
+     纯结构色，不携带蓝/青倾向；玻璃面、默认壁纸、mono 图标均消费本板。 */
+  --c-neutral-pearl: #ffffff;
+  --c-neutral-warm: #f6f7f9;
+  --c-neutral-fog: #eceef1;
+  --c-neutral-mist: #e2e5e9;
+  --c-neutral-silver: #c8ccd2;
+  --c-neutral-steel: #9aa0a8;
+  --c-neutral-graphite: #54595f;
+  --c-neutral-charcoal: #292d33;
+  --c-neutral-obsidian: #0a0a0c;
+  --c-neutral-smoke: rgba(28, 28, 32, 0.55);
 
   /* ── 图标色板 9（全部 flat hex） ── */
   --c-icon-blue: #5B8FB966;

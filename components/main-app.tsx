@@ -10,6 +10,7 @@ import { PasscodeScreen } from "@/components/passcode-screen";
 import { RealityBridgeScheduler } from "@/components/reality-bridge-scheduler";
 import { MediaMaintenanceScheduler } from "@/components/media-maintenance-scheduler";
 import { ThemeAccentStyle } from "@/components/theme-accent-style";
+import { AppearanceBridgeProvider } from "@/components/appearance-bridge-provider";
 import { DesktopShell } from "./desktop-shell";
 import { OfflinePushRevampAnnouncement } from "./offline-push-revamp-announcement";
 import { UpdateNotice } from "./update-notice";
@@ -296,6 +297,8 @@ export function MainApp() {
     <AccountGate>
       {/* 统一主色 token：首帧即生效，锁屏/密码页（phone-shell 之外）也能取到 */}
       <ThemeAccentStyle />
+      {/* v0.8.0 Appearance Bridge：data-color-mode 唯一写入点 + 全局外观变量 */}
+      <AppearanceBridgeProvider />
       {phase === "boot" && (
         <BootSplash onFinish={() => setPhase(hasPendingMcpOAuthCallback() ? "home" : "locked")} />
       )}

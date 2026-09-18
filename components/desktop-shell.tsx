@@ -110,6 +110,7 @@ import {
   type ThemeProfile
 } from "@/lib/theme-types";
 import { buildAccentTokensCSS, buildAccentPhoneShellAliasesCSS, buildAccentResetCSS } from "@/lib/theme-accent";
+import { resolveDesktopIconEffect, resolveDesktopWidgetEffect } from "@/lib/appearance-bridge";
 import { GRID_COLS, GRID_ROWS, WIDGET_SIZE_CELLS, WIDGET_CATALOG, type WidgetInstance, type WidgetType } from "@/lib/widget-types";
 import { buildOccupancyGrid, canPlaceWidget, placeWidget, createDefaultWidgets, loadWidgets, saveWidgets, loadDIYTemplates, saveDIYTemplates } from "@/lib/widget-storage";
 import {
@@ -1372,8 +1373,9 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
     () => collectCssOverrides(draftTheme),
     [draftTheme]
   );
-  const iconEffect = cssOverrides["--desktop-icon-effect"] || "glass";
-  const widgetEffect = cssOverrides["--desktop-widget-effect"] || "glass";
+  // v0.8.0：特效属性统一经 Appearance Bridge 解析（cssOverrides > 用户 appearance > 默认 Pearl Glass）
+  const iconEffect = resolveDesktopIconEffect(draftTheme);
+  const widgetEffect = resolveDesktopWidgetEffect(draftTheme);
   // Without an uploaded font, legacy theme/custom CSS can provide the normal app font.
   // Once a font file is uploaded, that file becomes the authoritative global font.
   const resolvedFontFamily = useMemo(() => {
@@ -1441,14 +1443,12 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
     return blocks.join("\n");
   }, [cssOverrides, resolvedFontFamily, draftTheme.accentColor]);
 
-  // 同步日/夜间模式到 <html>：供移动端 overscroll / 安全区缝隙填黑使用。
-  // 画面内的反色由 .phone-shell[data-color-mode] 属性驱动（见 color-mode.css）。
-  useEffect(() => {
-    document.documentElement.dataset.colorMode = draftTheme.colorMode === "dark" ? "dark" : "light";
-    return () => {
-      delete document.documentElement.dataset.colorMode;
-    };
-  }, [draftTheme.colorMode]);
+  // v0.8.0：日/夜间模式到 <html> 的同步已收敛到 AppearanceBridgeProvider
+  // （components/appearance-bridge-provider.tsx），它是 data-color-mode 的唯一写入点。
+  // .phone-shell 上的同名属性仍在下方 JSX 渲染，仅作为 CSS 作用域投影。
+
+  // Wallpaper 底色随明暗模式：亮色 Pearl 白、暗色 Obsidian 黑（用户壁纸图本身不变）。
+  const wallpaperBaseColor = draftTheme.colorMode === "dark" ? "#0a0a0c" : "#ffffff";
   const uploadedFontOverrideCSS = useMemo(() => {
     if (!fontDataUrl) return "";
     const family = `${themeFontFamily}, ${EMOJI_FONTS}`;
@@ -1471,11 +1471,11 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
   }, []);
   const wallpaperStyle = useMemo<CSSProperties>(() => {
     if (!wallpaperDataUrl) {
-      return { backgroundColor: "#ffffff" };
+      return { backgroundColor: wallpaperBaseColor };
     }
     const whiteMaskAlpha = Number((1 - draftTheme.wallpaperOpacity).toFixed(3));
     return {
-      backgroundColor: "#ffffff",
+      backgroundColor: wallpaperBaseColor,
       backgroundImage: `linear-gradient(rgba(255, 255, 255, ${whiteMaskAlpha}), rgba(255, 255, 255, ${whiteMaskAlpha})), url("${wallpaperDataUrl}")`,
       opacity: 1,
       filter: draftTheme.wallpaperBlur ? `blur(${draftTheme.wallpaperBlur}px)` : undefined,
@@ -1487,12 +1487,14 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
       backgroundPosition: `${draftTheme.wallpaperX}% ${draftTheme.wallpaperY}%`
     };
   }, [
+    draftTheme.colorMode,
     draftTheme.wallpaperBlur,
     draftTheme.wallpaperOpacity,
     draftTheme.wallpaperScale,
     draftTheme.wallpaperX,
     draftTheme.wallpaperY,
-    wallpaperDataUrl
+    wallpaperDataUrl,
+    wallpaperBaseColor
   ]);
   useEffect(() => {
     hydrateKvDb().then(() => {
@@ -4181,7 +4183,8 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
               data-widget-effect={widgetEffect}
               data-glass-pass={glassPaintPass % 2}
               data-borders={draftTheme.enableGlobalBorder ? "on" : "off"}
-              data-color-mode={draftTheme.colorMode === "dark" ? "dark" : "light"}
+              // v0.8.0：data-color-mode 不再写在这里；明暗属性由 Appearance Bridge
+              // 唯一写到 <html>，CSS 经 :root[data-color-mode] .phone-shell 级联生效。
               style={{
                 "--user-border-color": draftTheme.globalBorderColor,
                 "--desktop-outline-color": resolvedOutlineColor,

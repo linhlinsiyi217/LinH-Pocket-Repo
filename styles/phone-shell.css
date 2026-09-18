@@ -141,18 +141,28 @@
   z-index: 1;
 }
 
+/* v0.8.0 默认壁纸：黑白灰 Pearl Light，去除蓝青 Demo 倾向。
+   仅在用户未设置壁纸时露出；暗色版见下方 data-color-mode="dark" 重映射。 */
 .phone-wallpaper {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background-color: #c2e2f0;
+  background-color: var(--c-neutral-fog, #eceef1);
   background-image:
-    radial-gradient(ellipse 160% 140% at 90% 0%, rgba(60, 130, 210, 0.75) 0%, rgba(90, 160, 225, 0.35) 40%, transparent 80%),
-    radial-gradient(ellipse 160% 140% at 5% 100%, rgba(100, 218, 195, 0.4) 0%, rgba(150, 235, 218, 0.15) 40%, transparent 80%);
+    radial-gradient(ellipse 160% 140% at 90% 0%, rgba(255, 255, 255, 0.92) 0%, rgba(244, 246, 248, 0.55) 42%, transparent 80%),
+    radial-gradient(ellipse 160% 140% at 5% 100%, rgba(206, 211, 218, 0.6) 0%, rgba(230, 233, 237, 0.28) 44%, transparent 80%);
   background-repeat: no-repeat;
   background-position: center;
   background-size: cover;
   transition: opacity 220ms ease;
+}
+
+/* v0.8.0 Obsidian Dark 默认壁纸：暖黑 + 烟灰微光，不做纯黑死面 */
+:root[data-color-mode="dark"] .phone-shell .phone-wallpaper {
+  background-color: var(--c-neutral-obsidian, #0a0a0c);
+  background-image:
+    radial-gradient(ellipse 160% 140% at 88% 0%, rgba(52, 53, 59, 0.72) 0%, rgba(30, 31, 35, 0.36) 42%, transparent 80%),
+    radial-gradient(ellipse 160% 140% at 6% 100%, rgba(40, 41, 47, 0.62) 0%, rgba(22, 23, 27, 0.3) 44%, transparent 80%);
 }
 
 /* 全局主色壁纸着色：同一颗种子色派生的极轻 wash（alpha 6%/12%，夜间在
@@ -502,8 +512,8 @@
       color-mix(in srgb, var(--c-desktop-icon-bg, #ffffff) 6%, transparent),
       rgba(255, 255, 255, 0.06)),
     color-mix(in srgb, var(--c-desktop-icon-box, #ffffff) 38%, transparent);
-  backdrop-filter: blur(var(--pg-blur-md, 22px)) saturate(var(--glass-saturate, 140%));
-  -webkit-backdrop-filter: blur(var(--pg-blur-md, 22px)) saturate(var(--glass-saturate, 140%));
+  backdrop-filter: blur(calc(var(--pg-blur-md, 22px) * var(--pearl-glass-strength, 1))) saturate(var(--glass-saturate, 140%));
+  -webkit-backdrop-filter: blur(calc(var(--pg-blur-md, 22px) * var(--pearl-glass-strength, 1))) saturate(var(--glass-saturate, 140%));
   box-shadow:
     inset 0 1px 1px rgba(255, 255, 255, 0.22),
     inset 0 -1px 1px rgba(255, 255, 255, 0.04),
@@ -552,13 +562,27 @@
 }
 
 .phone-shell[data-glass-pass="1"][data-icon-effect="glass"] .icon-glyph-box {
-  backdrop-filter: blur(calc(var(--pg-blur-md, 22px) + 0.01px)) saturate(var(--glass-saturate, 140%));
-  -webkit-backdrop-filter: blur(calc(var(--pg-blur-md, 22px) + 0.01px)) saturate(var(--glass-saturate, 140%));
+  backdrop-filter: blur(calc(var(--pg-blur-md, 22px) * var(--pearl-glass-strength, 1) + 0.01px)) saturate(var(--glass-saturate, 140%));
+  -webkit-backdrop-filter: blur(calc(var(--pg-blur-md, 22px) * var(--pearl-glass-strength, 1) + 0.01px)) saturate(var(--glass-saturate, 140%));
 }
 
 .phone-shell[data-icon-effect="transparent"] .icon-glyph-box {
   /** background-color: transparent !important; */
   box-shadow: none !important;
+}
+
+/* v0.8.0 Mono 图标：纯色灰阶方块，无玻璃模糊、无 rim、无 glow；
+   glyph 仍消费 --c-desktop-icon，亮暗模式自动对比。 */
+.phone-shell[data-icon-effect="mono"] .icon-glyph-box {
+  background: var(--c-neutral-mist, #e2e5e9);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+:root[data-color-mode="dark"] .phone-shell[data-icon-effect="mono"] .icon-glyph-box {
+  background: rgba(44, 44, 47, 0.92);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 .icon-glyph-box-skin {
@@ -876,8 +900,8 @@
       rgba(255, 255, 255, 0.05)),
     color-mix(in srgb, var(--c-home-glass, rgba(255, 255, 255, 0.3)) 55%, transparent);
   border: none;
-  backdrop-filter: blur(var(--pg-blur-lg, 30px)) saturate(var(--glass-saturate, 140%));
-  -webkit-backdrop-filter: blur(var(--pg-blur-lg, 30px)) saturate(var(--glass-saturate, 140%));
+  backdrop-filter: blur(calc(var(--pg-blur-lg, 30px) * var(--pearl-glass-strength, 1))) saturate(var(--glass-saturate, 140%));
+  -webkit-backdrop-filter: blur(calc(var(--pg-blur-lg, 30px) * var(--pearl-glass-strength, 1))) saturate(var(--glass-saturate, 140%));
   box-shadow:
     inset 0 1px 1px rgba(255, 255, 255, 0.2),
     inset 0 -1px 1px rgba(255, 255, 255, 0.04),
@@ -927,8 +951,8 @@
 }
 
 .phone-shell[data-glass-pass="1"][data-icon-effect="glass"] .dock:not([data-skinned]) {
-  backdrop-filter: blur(calc(var(--pg-blur-lg, 30px) + 0.01px)) saturate(var(--glass-saturate, 140%));
-  -webkit-backdrop-filter: blur(calc(var(--pg-blur-lg, 30px) + 0.01px)) saturate(var(--glass-saturate, 140%));
+  backdrop-filter: blur(calc(var(--pg-blur-lg, 30px) * var(--pearl-glass-strength, 1) + 0.01px)) saturate(var(--glass-saturate, 140%));
+  -webkit-backdrop-filter: blur(calc(var(--pg-blur-lg, 30px) * var(--pearl-glass-strength, 1) + 0.01px)) saturate(var(--glass-saturate, 140%));
 }
 
 .dock[data-skinned] {
@@ -1444,8 +1468,8 @@
       color-mix(in srgb, var(--c-desktop-icon-bg, #ffffff) 6%, transparent),
       rgba(255, 255, 255, 0.06)),
     color-mix(in srgb, var(--c-desktop-icon-box, #ffffff) 30%, transparent);
-  backdrop-filter: blur(var(--pg-blur-lg, 30px)) saturate(var(--glass-saturate, 140%));
-  -webkit-backdrop-filter: blur(var(--pg-blur-lg, 30px)) saturate(var(--glass-saturate, 140%));
+  backdrop-filter: blur(calc(var(--pg-blur-lg, 30px) * var(--pearl-glass-strength, 1))) saturate(var(--glass-saturate, 140%));
+  -webkit-backdrop-filter: blur(calc(var(--pg-blur-lg, 30px) * var(--pearl-glass-strength, 1))) saturate(var(--glass-saturate, 140%));
   box-shadow:
     inset 0 1px 1px rgba(255, 255, 255, 0.22),
     inset 0 -1px 1px rgba(255, 255, 255, 0.04),

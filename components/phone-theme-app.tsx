@@ -210,7 +210,7 @@ export function PhoneThemeApp({
     return "menu";
   });
   const [showStatusBarAdjust, setShowStatusBarAdjust] = useState(false);
-  const [systemBarShown, setSystemBarShown] = useState(() => (typeof document !== "undefined" && readPwaDisplayPreference(document.cookie) === "standalone") || true);
+  const [systemBarShown, setSystemBarShown] = useState<boolean>(() => (typeof document !== "undefined" && readPwaDisplayPreference(document.cookie) === "standalone") || true);
   const [showTextAdjust, setShowTextAdjust] = useState(false);
   const [showThemeTransfer, setShowThemeTransfer] = useState(false);
   const [themeTransferBusy, setThemeTransferBusy] = useState(false);
