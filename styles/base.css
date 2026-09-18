@@ -477,6 +477,232 @@ a {
   color: #ffffff;
 }
 
+/* ═══════════════════════════════════════════════════════════
+   v0.8.0 锁屏外观层（Appearance Bridge 订阅方）
+   - data-color-mode 只在 <html> 上，由 AppearanceBridgeProvider 唯一写入，
+     锁屏自身不维护任何本地 Light/Dark 状态；
+   - 状态栏（.phone-status-bar）几何零改动：本块只下发前景色令牌
+     --status-bar-color，位置 / 尺寸 / padding / Dynamic Island / 字体
+     / DOM 几何一律不碰；follow/custom 壁纸下由组件采样图片亮度覆写该令牌；
+   - 壁纸三模式：.ios-lock-wallpaper[data-lock-wallpaper=pearl|follow|custom]，
+     pearl 用内置中性 Pearl/Obsidian，follow/custom 用 inline style 铺用户图；
+   - 私有 --lock-* 令牌选择器 specificity 一律 (0,2,0)，不用 !important，
+     自定义主题 / globalCustomCSS / 图标皮肤的优先级不被抬高压制。
+   ═══════════════════════════════════════════════════════════ */
+.ios-lock-root {
+  /* 桌面预览：卡片外围留白底色（真机铺满时被下方 media 块的 surface token 覆盖） */
+  background: #edf0f4;
+
+  --status-bar-color: #1a1a1a;
+  --lock-fg-strong: #444953;
+  --lock-fg: #5c636e;
+  --lock-fg-soft: #707783;
+  --lock-fg-hint: rgba(94, 102, 114, 0.85);
+  --lock-glass-bg: rgba(255, 255, 255, 0.28);
+  --lock-glass-bg-soft: rgba(255, 255, 255, 0.24);
+  --lock-glass-border: rgba(255, 255, 255, 0.7);
+  --lock-noti-bg: rgba(255, 255, 255, 0.44);
+  --lock-noti-bg-active: rgba(255, 255, 255, 0.62);
+  --lock-noti-border: rgba(255, 255, 255, 0.7);
+  --lock-circle-bg: rgba(255, 255, 255, 0.55);
+  --lock-tile-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(203, 213, 225, 0.65));
+  --lock-tile-glyph: #ffffff;
+  --lock-divider: rgba(124, 132, 144, 0.7);
+  --lock-home-bar: rgba(255, 255, 255, 0.95);
+}
+
+[data-color-mode="dark"] .ios-lock-root {
+  background: var(--c-lock-surface-bg, #0a0a0c);
+  --status-bar-color: rgba(255, 255, 255, 0.92);
+  --lock-fg-strong: #e8eaee;
+  --lock-fg: #c6cad1;
+  --lock-fg-soft: #98a0aa;
+  --lock-fg-hint: rgba(200, 205, 212, 0.85);
+  --lock-glass-bg: rgba(38, 40, 44, 0.45);
+  --lock-glass-bg-soft: rgba(40, 42, 47, 0.4);
+  --lock-glass-border: rgba(255, 255, 255, 0.12);
+  --lock-noti-bg: rgba(34, 36, 40, 0.42);
+  --lock-noti-bg-active: rgba(46, 48, 53, 0.62);
+  --lock-noti-border: rgba(255, 255, 255, 0.12);
+  --lock-circle-bg: rgba(50, 52, 57, 0.55);
+  --lock-tile-bg: linear-gradient(135deg, rgba(58, 60, 66, 0.92), rgba(34, 36, 40, 0.72));
+  --lock-tile-glyph: #e9ebef;
+  --lock-divider: rgba(235, 235, 240, 0.32);
+  --lock-home-bar: rgba(245, 245, 247, 0.92);
+}
+
+/* 卡片表面（几何类仍由 Tailwind / 既有 media 块负责，这里只管颜色与阴影） */
+.ios-lock-card {
+  background: #e7ebf0;
+  box-shadow:
+    0 30px 90px rgba(60, 72, 90, 0.22),
+    0 0 0 1px rgba(255, 255, 255, 0.8);
+}
+[data-color-mode="dark"] .ios-lock-card {
+  background: #16171b;
+  box-shadow:
+    0 30px 90px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+/* Pearl 默认壁纸：亮色等价原 Tailwind 硬编码渐变，暗色为 Obsidian 同族 */
+.ios-lock-wallpaper {
+  background: linear-gradient(145deg, #f8fafc 0%, #e9edf2 38%, #d5dbe3 100%);
+}
+[data-color-mode="dark"] .ios-lock-wallpaper {
+  background: linear-gradient(145deg, #202125 0%, #17181c 38%, #0d0e11 100%);
+}
+/* follow/custom：用户图由 inline style 提供，关闭 Pearl 渐变底色与装饰 */
+.ios-lock-wallpaper[data-lock-wallpaper="follow"],
+.ios-lock-wallpaper[data-lock-wallpaper="custom"] {
+  background-image: none;
+}
+.ios-lock-wallpaper[data-lock-wallpaper="follow"] .ios-lock-blob,
+.ios-lock-wallpaper[data-lock-wallpaper="custom"] .ios-lock-blob,
+.ios-lock-wallpaper[data-lock-wallpaper="follow"] .ios-lock-wallpaper-veil,
+.ios-lock-wallpaper[data-lock-wallpaper="custom"] .ios-lock-wallpaper-veil {
+  display: none;
+}
+
+/* 装饰光斑（几何属性保留在 Tailwind 类上，这里只有颜色/阴影/材质） */
+.ios-lock-blob-a {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.35) 55%, rgba(203, 213, 225, 0.35));
+  box-shadow:
+    inset -20px -25px 50px rgba(120, 130, 145, 0.15),
+    inset 18px 18px 35px rgba(255, 255, 255, 0.85),
+    0 30px 70px rgba(120, 130, 145, 0.18);
+}
+.ios-lock-blob-b {
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  background: linear-gradient(to top right, rgba(203, 213, 225, 0.35), rgba(255, 255, 255, 0.45) 55%, rgba(255, 255, 255, 0.9));
+  box-shadow:
+    inset 12px 18px 30px rgba(255, 255, 255, 0.9),
+    inset -26px -30px 70px rgba(122, 132, 145, 0.13),
+    0 18px 70px rgba(102, 114, 132, 0.15);
+}
+.ios-lock-blob-c {
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow:
+    inset 20px 15px 30px rgba(255, 255, 255, 0.7),
+    0 30px 80px rgba(100, 112, 130, 0.15);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+}
+[data-color-mode="dark"] .ios-lock-blob-a {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03) 55%, rgba(130, 136, 146, 0.1));
+  box-shadow:
+    inset -20px -25px 50px rgba(0, 0, 0, 0.3),
+    inset 18px 18px 35px rgba(255, 255, 255, 0.05),
+    0 30px 70px rgba(0, 0, 0, 0.4);
+}
+[data-color-mode="dark"] .ios-lock-blob-b {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: linear-gradient(to top right, rgba(120, 126, 138, 0.12), rgba(255, 255, 255, 0.05) 55%, rgba(255, 255, 255, 0.12));
+  box-shadow:
+    inset 12px 18px 30px rgba(255, 255, 255, 0.06),
+    inset -26px -30px 70px rgba(0, 0, 0, 0.28),
+    0 18px 70px rgba(0, 0, 0, 0.38);
+}
+[data-color-mode="dark"] .ios-lock-blob-c {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow:
+    inset 20px 15px 30px rgba(255, 255, 255, 0.06),
+    0 30px 80px rgba(0, 0, 0, 0.36);
+}
+
+/* 壁纸顶/底柔化层与顶部 haze */
+.ios-lock-wallpaper-veil {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.1), transparent, rgba(100, 116, 139, 0.1));
+}
+.ios-lock-haze {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.2), transparent);
+}
+[data-color-mode="dark"] .ios-lock-wallpaper-veil {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.05), transparent, rgba(0, 0, 0, 0.28));
+}
+[data-color-mode="dark"] .ios-lock-haze {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.06), transparent);
+}
+
+/* 玻璃小组件（几何在 Tailwind / 组件类上，颜色与阴影进令牌） */
+.ios-lock-glass {
+  border: 1px solid var(--lock-glass-border);
+  -webkit-backdrop-filter: blur(22px);
+  backdrop-filter: blur(22px);
+}
+.ios-lock-glass-card {
+  background: var(--lock-glass-bg);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.85),
+    0 10px 25px rgba(90, 104, 124, 0.1);
+}
+.ios-lock-glass-circle {
+  background: var(--lock-glass-bg-soft);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.9),
+    0 10px 25px rgba(95, 105, 120, 0.1);
+}
+[data-color-mode="dark"] .ios-lock-glass-card {
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.12),
+    0 10px 25px rgba(0, 0, 0, 0.32);
+}
+[data-color-mode="dark"] .ios-lock-glass-circle {
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.1),
+    0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+/* 通知行玻璃 */
+.ios-lock-noti {
+  border: 1px solid var(--lock-noti-border);
+  background: var(--lock-noti-bg);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 9px 24px rgba(83, 95, 112, 0.1);
+  -webkit-backdrop-filter: blur(28px);
+  backdrop-filter: blur(28px);
+}
+.ios-lock-noti.is-active {
+  border-color: rgba(255, 255, 255, 0.9);
+  background: var(--lock-noti-bg-active);
+  box-shadow: 0 14px 35px rgba(83, 95, 112, 0.16);
+}
+[data-color-mode="dark"] .ios-lock-noti {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 9px 24px rgba(0, 0, 0, 0.28);
+}
+[data-color-mode="dark"] .ios-lock-noti.is-active {
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 14px 35px rgba(0, 0, 0, 0.45);
+}
+
+/* 通知左侧图标贴片 */
+.ios-lock-tile {
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  background: var(--lock-tile-bg);
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 1),
+    0 5px 12px rgba(72, 86, 104, 0.14);
+}
+[data-color-mode="dark"] .ios-lock-tile {
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.1),
+    0 5px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* 暗色下大时钟去白色浮雕、手电/相机按钮 glyph 变柔白 */
+[data-color-mode="dark"] .ios-lock-clock {
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.45);
+}
+[data-color-mode="dark"] .glass-btn.ios-lock-round {
+  color: #d6d9de;
+}
+
 @media (max-width: 600px) {
   .ios-lock-root {
     display: block;

@@ -10,6 +10,15 @@ import {
   Cloud,
   Flower2,
 } from "lucide-react";
+import {
+  DEFAULT_APPEARANCE_SNAPSHOT,
+  getAppearanceSnapshot,
+  subscribeAppearance,
+  type AppearanceSnapshot
+} from "@/lib/appearance-bridge";
+import { getThemeAssetDataUrl } from "@/lib/theme-storage";
+import { hydrateKvDb } from "@/lib/kv-db";
+import { detectImageBrightness } from "@/lib/bg-tone";
 
 /* ── 上滑解锁手势参数（集中配置，方便真机微调） ── */
 // 只有从卡片下 58% 区域起手才认作解锁手势，避免挡住上方小组件/通知的点击
@@ -123,6 +132,130 @@ export default function IOSKoreanLockScreen({ onUnlock }: { onUnlock?: () => voi
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     gestureCleanupRef.current?.();
   }, []);
+
+  /* ── v0.8.0 外观订阅：锁屏唯一的外观来源是 Appearance Bridge（同源
+       ThemeProfile），禁止在本组件维护第二份 Light/Dark 状态。 ── */
+  const rootRef = useRef<HTMLElement | null>(null);
+  const [appearance, setAppearance] = useState<AppearanceSnapshot>(DEFAULT_APPEARANCE_SNAPSHOT);
+  const [lockWallpaperUrl, setLockWallpaperUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const sync = () => {
+      if (active) setAppearance(getAppearanceSnapshot());
+    };
+    sync();
+    const unsubscribe = subscribeAppearance(sync);
+    // kv 水合完成前 readThemeProfile 可能仍是默认值，水合后强制重读一次。
+    void hydrateKvDb().then(sync);
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, []);
+
+  const { profile, colorMode } = appearance;
+  const lockCfg = appearance.lockWallpaper;
+  const wantedWallpaperAssetId =
+    lockCfg.mode === "follow"
+      ? profile.wallpaperAssetId
+      : lockCfg.mode === "custom"
+        ? lockCfg.assetId
+        : null;
+
+  // 壁纸资产取数（follow=桌面壁纸资产，custom=锁屏独立资产）
+  useEffect(() => {
+    let cancelled = false;
+    if (!wantedWallpaperAssetId) {
+      setLockWallpaperUrl(null);
+      return;
+    }
+    void getThemeAssetDataUrl(wantedWallpaperAssetId).then((url) => {
+      if (!cancelled) setLockWallpaperUrl(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [wantedWallpaperAssetId]);
+
+  // 资产缺失（未上传/已删除）时静默回退 Pearl 默认壁纸
+  const wallpaperMode: "pearl" | "follow" | "custom" =
+    lockCfg.mode !== "pearl" && lockWallpaperUrl ? lockCfg.mode : "pearl";
+
+  /* 状态栏前景：
+     - pearl：只随 colorMode（CSS 令牌），组件不写任何内联色；
+     - follow/custom：复用 bg-tone 采样接口（接口不改），按壁纸图片实际
+       亮度在 --status-bar-color 上覆写黑/白前景，保证浅/深/彩色壁纸下
+       时间、信号、WiFi、电池始终可读。仅前景色，几何零改动。
+     同时同步 <meta name=theme-color>，让 Android PWA 系统栏跟随。 */
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || typeof document === "undefined") return;
+    let cancelled = false;
+
+    const syncMetaThemeColor = (tone: "light" | "dark") => {
+      const meta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;
+      if (meta) {
+        meta.content = tone === "dark" ? "#0a0a0c" : "#e9edf2";
+      }
+    };
+
+    if (wallpaperMode === "pearl") {
+      root.style.removeProperty("--status-bar-color");
+      root.style.removeProperty("--c-lock-clock-color");
+      syncMetaThemeColor(colorMode);
+      return;
+    }
+
+    void detectImageBrightness(lockWallpaperUrl as string).then((tone) => {
+      if (cancelled) return;
+      root.style.setProperty(
+        "--status-bar-color",
+        tone === "dark" ? "rgba(255,255,255,0.92)" : "#1a1a1a"
+      );
+      root.style.setProperty(
+        "--c-lock-clock-color",
+        tone === "dark" ? "#f5f5f7" : "#1a1a1a"
+      );
+      syncMetaThemeColor(tone);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [wallpaperMode, lockWallpaperUrl, colorMode]);
+
+  const wallpaperLayerStyle: React.CSSProperties =
+    wallpaperMode === "pearl"
+      ? {}
+      : (() => {
+          const cfg = wallpaperMode === "follow"
+            ? {
+                blur: profile.wallpaperBlur,
+                opacity: profile.wallpaperOpacity,
+                scale: profile.wallpaperScale,
+                x: profile.wallpaperX,
+                y: profile.wallpaperY
+              }
+            : {
+                blur: lockCfg.blur,
+                opacity: lockCfg.opacity,
+                scale: lockCfg.scale,
+                x: lockCfg.x,
+                y: lockCfg.y
+              };
+          const isDark = colorMode === "dark";
+          const maskAlpha = Number((1 - cfg.opacity).toFixed(3));
+          const maskChannels = isDark ? "0,0,0" : "255,255,255";
+          return {
+            backgroundColor: isDark ? "#0a0a0c" : "#ffffff",
+            backgroundImage: `linear-gradient(rgba(${maskChannels},${maskAlpha}), rgba(${maskChannels},${maskAlpha})), url("${lockWallpaperUrl}")`,
+            filter: cfg.blur ? `blur(${cfg.blur}px)` : undefined,
+            // 与桌面同款外扩：blur 边缘采样落到 overflow:hidden 之外
+            inset: cfg.blur ? `${-2 * cfg.blur}px` : undefined,
+            backgroundSize: cfg.scale !== 100 ? `${cfg.scale}%` : "cover",
+            backgroundPosition: `${cfg.x}% ${cfg.y}%`
+          };
+        })();
 
   const commitTranslate = (next: number) => {
     pendingYRef.current = null;
@@ -258,7 +391,11 @@ export default function IOSKoreanLockScreen({ onUnlock }: { onUnlock?: () => voi
   const swipeProgress = Math.min(1, Math.max(0, -translateY) / COMMIT_DISTANCE_PX);
 
   return (
-    <main className="ios-lock-root min-h-screen bg-[#edf0f4] flex items-center justify-center overflow-hidden p-4 sm:p-8">
+    <main
+      ref={rootRef}
+      data-lock-wallpaper={wallpaperMode}
+      className="ios-lock-root min-h-screen flex items-center justify-center overflow-hidden p-4 sm:p-8"
+    >
       <div
         ref={cardRef}
         className="
@@ -269,10 +406,6 @@ export default function IOSKoreanLockScreen({ onUnlock }: { onUnlock?: () => voi
           max-w-full
           overflow-hidden
           rounded-[52px]
-          bg-[#e7ebf0]
-          shadow-[0_30px_90px_rgba(60,72,90,.22)]
-          ring-1
-          ring-white/80
           select-none
           touch-none
         "
@@ -283,10 +416,15 @@ export default function IOSKoreanLockScreen({ onUnlock }: { onUnlock?: () => voi
           willChange: "transform",
         }}
       >
-        {/* Wallpaper */}
-        <div className="absolute inset-0 overflow-hidden bg-[linear-gradient(145deg,#f8fafc_0%,#e9edf2_38%,#d5dbe3_100%)]">
+        {/* Wallpaper（pearl=内置中性壁纸；follow/custom=用户资产，inline style） */}
+        <div
+          className="ios-lock-wallpaper absolute inset-0 overflow-hidden"
+          data-lock-wallpaper={wallpaperMode}
+          style={wallpaperLayerStyle}
+        >
           <div
             className="
+              ios-lock-blob ios-lock-blob-a
               absolute
               -left-[110px]
               top-[110px]
@@ -294,17 +432,13 @@ export default function IOSKoreanLockScreen({ onUnlock }: { onUnlock?: () => voi
               w-[520px]
               rotate-[28deg]
               rounded-[48%]
-              bg-gradient-to-br
-              from-white/90
-              via-white/35
-              to-slate-300/35
-              shadow-[inset_-20px_-25px_50px_rgba(120,130,145,.15),inset_18px_18px_35px_rgba(255,255,255,.85),0_30px_70px_rgba(120,130,145,.18)]
               blur-[0.2px]
             "
           />
 
           <div
             className="
+              ios-lock-blob ios-lock-blob-b
               absolute
               -right-[220px]
               top-[340px]
@@ -312,18 +446,12 @@ export default function IOSKoreanLockScreen({ onUnlock }: { onUnlock?: () => voi
               w-[610px]
               rotate-[-34deg]
               rounded-[48%]
-              border
-              border-white/75
-              bg-gradient-to-tr
-              from-slate-300/35
-              via-white/45
-              to-white/90
-              shadow-[inset_12px_18px_30px_rgba(255,255,255,.9),inset_-26px_-30px_70px_rgba(122,132,145,.13),0_18px_70px_rgba(102,114,132,.15)]
             "
           />
 
           <div
             className="
+              ios-lock-blob ios-lock-blob-c
               absolute
               left-[50px]
               top-[430px]
@@ -331,29 +459,24 @@ export default function IOSKoreanLockScreen({ onUnlock }: { onUnlock?: () => voi
               w-[460px]
               rotate-[18deg]
               rounded-[50%]
-              border
-              border-white/65
-              bg-white/15
-              shadow-[inset_20px_15px_30px_rgba(255,255,255,.7),0_30px_80px_rgba(100,112,130,.15)]
-              backdrop-blur-xl
             "
           />
 
-          <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-slate-500/10" />
+          <div className="ios-lock-wallpaper-veil absolute inset-0" />
 
           {/* 全局主色轻度着色：与桌面壁纸 / 设置 / 按钮同一色彩家族（token 来自 :root） */}
           <div className="ios-lock-accent-tint pointer-events-none absolute inset-0" aria-hidden />
         </div>
 
         {/* subtle top haze */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-white/20 to-transparent" />
+        <div className="ios-lock-haze pointer-events-none absolute inset-x-0 top-0 h-48" />
 
         {/* status bar —— 与主界面 desktop-shell 的 phone-status-bar 完全同款 */}
         <LockStatusBar time={time} />
 
         {/* main lock content */}
         <section className="ios-lock-content relative z-10 flex flex-col items-center px-5">
-          <p className="mt-[48px] text-[18px] font-medium tracking-[-0.035em] text-[#444953]">
+          <p className="mt-[48px] text-[18px] font-medium tracking-[-0.035em] text-[color:var(--lock-fg-strong)]">
             Thu 1 Jan
           </p>
 
@@ -364,27 +487,27 @@ export default function IOSKoreanLockScreen({ onUnlock }: { onUnlock?: () => voi
           {/* widgets */}
           <div className="mt-5 flex w-full justify-center gap-3">
             <GlassCard className="flex h-[78px] w-[172px] items-center px-4">
-              <div className="mr-3 grid h-11 w-11 place-items-center rounded-full bg-white/55 shadow-inner">
+              <div className="mr-3 grid h-11 w-11 place-items-center rounded-full bg-[color:var(--lock-circle-bg)] shadow-inner">
                 <Cloud
-                  className="h-7 w-7 fill-white text-white drop-shadow"
+                  className="h-7 w-7 fill-[color:var(--lock-tile-glyph)] text-[color:var(--lock-tile-glyph)] drop-shadow"
                   strokeWidth={1.4}
                 />
               </div>
 
               <div>
-                <p className="text-[24px] font-light leading-none text-[#4b515b]">
+                <p className="text-[24px] font-light leading-none text-[color:var(--lock-fg-strong)]">
                   26°
                 </p>
-                <p className="mt-1 text-[11px] font-medium text-[#585f69]">
+                <p className="mt-1 text-[11px] font-medium text-[color:var(--lock-fg)]">
                   Partly Cloudy
                 </p>
-                <p className="text-[10px] text-[#707783]">H:28° L:20°</p>
+                <p className="text-[10px] text-[color:var(--lock-fg-soft)]">H:28° L:20°</p>
               </div>
             </GlassCard>
 
             <GlassCircle>
-              <Leaf className="mb-1 h-6 w-6 text-[#606771]" strokeWidth={1.7} />
-              <span className="text-[10px] leading-tight text-[#626974]">
+              <Leaf className="mb-1 h-6 w-6 text-[color:var(--lock-fg)]" strokeWidth={1.7} />
+              <span className="text-[10px] leading-tight text-[color:var(--lock-fg-soft)]">
                 Good
                 <br />
                 Day
@@ -393,16 +516,16 @@ export default function IOSKoreanLockScreen({ onUnlock }: { onUnlock?: () => voi
 
             <GlassCircle>
               <BatteryFull
-                className="mb-1 h-6 w-6 text-[#5c636e]"
+                className="mb-1 h-6 w-6 text-[color:var(--lock-fg)]"
                 strokeWidth={1.8}
               />
-              <span className="text-[11px] text-[#626974]">100%</span>
+              <span className="text-[11px] text-[color:var(--lock-fg-soft)]">100%</span>
             </GlassCircle>
           </div>
         </section>
 
         {/* middle phrase */}
-        <div className="absolute left-7 top-[410px] z-10 text-[#7a8390]">
+        <div className="absolute left-7 top-[410px] z-10 text-[color:var(--lock-fg-soft)]">
           <p className="text-[13px] font-light leading-[1.15] tracking-[0.12em]">
             A
             <br />
@@ -413,7 +536,7 @@ export default function IOSKoreanLockScreen({ onUnlock }: { onUnlock?: () => voi
             Ahead
           </p>
 
-          <div className="mt-4 h-px w-5 bg-[#7c8490]/70" />
+          <div className="mt-4 h-px w-5 bg-[color:var(--lock-divider)]" />
         </div>
 
         {/* notifications */}
@@ -425,7 +548,7 @@ export default function IOSKoreanLockScreen({ onUnlock }: { onUnlock?: () => voi
             }
             icon={
               <Heart
-                className="h-5 w-5 fill-[#687487] text-[#687487]"
+                className="h-5 w-5 fill-[color:var(--lock-fg)] text-[color:var(--lock-fg)]"
                 strokeWidth={1.5}
               />
             }
@@ -441,7 +564,7 @@ export default function IOSKoreanLockScreen({ onUnlock }: { onUnlock?: () => voi
             }
             icon={
               <Flower2
-                className="h-5 w-5 text-[#697893]"
+                className="h-5 w-5 text-[color:var(--lock-fg)]"
                 strokeWidth={1.6}
               />
             }
@@ -481,7 +604,7 @@ export default function IOSKoreanLockScreen({ onUnlock }: { onUnlock?: () => voi
         {/* swipe hint */}
         <div className="ios-lock-swipe absolute bottom-[30px] left-1/2 z-20 -translate-x-1/2 text-center">
           <p
-            className="ios-lock-swipe-text mb-3 whitespace-nowrap text-[11px] text-[#5e6672]/85"
+            className="ios-lock-swipe-text mb-3 whitespace-nowrap text-[11px] text-[color:var(--lock-fg-hint)]"
             style={{ opacity: Math.max(0.12, 1 - swipeProgress * 1.4) }}
           >
             向上轻扫以解锁
@@ -493,7 +616,7 @@ export default function IOSKoreanLockScreen({ onUnlock }: { onUnlock?: () => voi
               h-[5px]
               w-[135px]
               rounded-full
-              bg-white/95
+              bg-[color:var(--lock-home-bar)]
               shadow-[0_1px_5px_rgba(70,80,95,.18)]
             "
           />
@@ -530,12 +653,8 @@ function GlassCard({
   return (
     <div
       className={`
+        ios-lock-glass ios-lock-glass-card
         rounded-[27px]
-        border
-        border-white/70
-        bg-white/28
-        shadow-[inset_0_1px_1px_rgba(255,255,255,.85),0_10px_25px_rgba(90,104,124,.10)]
-        backdrop-blur-[22px]
         ${className}
       `}
     >
@@ -548,6 +667,7 @@ function GlassCircle({ children }: { children: React.ReactNode }) {
   return (
     <div
       className="
+        ios-lock-glass ios-lock-glass-circle
         flex
         h-[78px]
         w-[67px]
@@ -555,12 +675,7 @@ function GlassCircle({ children }: { children: React.ReactNode }) {
         items-center
         justify-center
         rounded-full
-        border
-        border-white/70
-        bg-white/24
         text-center
-        shadow-[inset_0_1px_1px_rgba(255,255,255,.9),0_10px_25px_rgba(95,105,120,.10)]
-        backdrop-blur-[22px]
       "
     >
       {children}
@@ -615,37 +730,24 @@ function Notification({
       type="button"
       onClick={onClick}
       className={`
+        ios-lock-noti
         flex
         w-full
         items-start
         rounded-[23px]
-        border
         px-3
         py-3
         text-left
-        backdrop-blur-[28px]
         transition-[transform,background-color,box-shadow]
         duration-200
         ease-out
         active:scale-[0.985]
-
-        ${
-          active
-            ? `
-              border-white/90
-              bg-white/62
-              shadow-[0_14px_35px_rgba(83,95,112,.16)]
-            `
-            : `
-              border-white/70
-              bg-white/44
-              shadow-[inset_0_1px_0_rgba(255,255,255,.8),0_9px_24px_rgba(83,95,112,.10)]
-            `
-        }
+        ${active ? "is-active" : ""}
       `}
     >
       <div
         className="
+          ios-lock-tile
           mr-3
           grid
           h-11
@@ -653,12 +755,6 @@ function Notification({
           shrink-0
           place-items-center
           rounded-[14px]
-          border
-          border-white/75
-          bg-gradient-to-br
-          from-white/90
-          to-slate-300/65
-          shadow-[inset_0_1px_2px_rgba(255,255,255,1),0_5px_12px_rgba(72,86,104,.14)]
         "
       >
         {icon}
@@ -666,14 +762,14 @@ function Notification({
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-4">
-          <p className="text-[13px] font-semibold tracking-[-0.02em] text-[#242932]">
+          <p className="text-[13px] font-semibold tracking-[-0.02em] text-[color:var(--lock-fg-strong)]">
             {title}
           </p>
 
-          <span className="text-[10px] text-[#777f8c]">{time}</span>
+          <span className="text-[10px] text-[color:var(--lock-fg-soft)]">{time}</span>
         </div>
 
-        <p className="mt-0.5 text-[11px] leading-[1.25] text-[#5e6570]">
+        <p className="mt-0.5 text-[11px] leading-[1.25] text-[color:var(--lock-fg)]">
           {body}
         </p>
       </div>

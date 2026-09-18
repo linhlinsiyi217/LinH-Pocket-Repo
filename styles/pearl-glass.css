@@ -1188,10 +1188,11 @@ svg {
    - 不携带任何色相（黑/白/灰 + 极低透明度），不使用反色滤镜；
    - 不改动上方任何 --pg-* 令牌名与亮色取值，只在 dark 作用域叠加；
    - 作用域限定 .phone-shell：锁屏不在此容器内，本块不影响锁屏
-     （锁屏 Light-Dark 联动在 T2 接入）。
+     （锁屏 Light-Dark 联动见 base.css 的 .ios-lock-* 令牌块）。
+   - 选择器 specificity 与旧版 .phone-shell[data-color-mode="dark"] 一致。
    ========================================================= */
 
-:root[data-color-mode="dark"] .phone-shell {
+[data-color-mode="dark"] .phone-shell {
   --glass-bg-light: rgba(40, 41, 46, 0.56);
   --glass-bg-medium: rgba(34, 35, 40, 0.44);
   --glass-bg-soft: rgba(28, 29, 33, 0.38);
@@ -1204,10 +1205,10 @@ svg {
   --glass-shadow-color-strong: rgba(0, 0, 0, 0.58);
 }
 
-:root[data-color-mode="dark"] .phone-shell .glass-bg,
-:root[data-color-mode="dark"] .phone-shell .glass-card,
-:root[data-color-mode="dark"] .phone-shell .glass-btn,
-:root[data-color-mode="dark"] .phone-shell .glass-input {
+[data-color-mode="dark"] .phone-shell .glass-bg,
+[data-color-mode="dark"] .phone-shell .glass-card,
+[data-color-mode="dark"] .phone-shell .glass-btn,
+[data-color-mode="dark"] .phone-shell .glass-input {
   background:
     linear-gradient(
       150deg,
@@ -1221,8 +1222,8 @@ svg {
     0 12px 30px rgba(0, 0, 0, 0.34);
 }
 
-:root[data-color-mode="dark"] .phone-shell .glass-card:hover,
-:root[data-color-mode="dark"] .phone-shell .glass-btn:hover {
+[data-color-mode="dark"] .phone-shell .glass-card:hover,
+[data-color-mode="dark"] .phone-shell .glass-btn:hover {
   background:
     linear-gradient(
       150deg,
@@ -1232,7 +1233,7 @@ svg {
   border-color: rgba(255, 255, 255, 0.16);
 }
 
-:root[data-color-mode="dark"] .phone-shell .glass-btn.is-active {
+[data-color-mode="dark"] .phone-shell .glass-btn.is-active {
   color: #f5f5f7;
   background:
     linear-gradient(
@@ -1243,10 +1244,10 @@ svg {
   border-color: rgba(255, 255, 255, 0.5);
 }
 
-:root[data-color-mode="dark"] .phone-shell .glass-input {
+[data-color-mode="dark"] .phone-shell .glass-input {
   color: #f5f5f7;
 }
 
-:root[data-color-mode="dark"] .phone-shell .glass-input::placeholder {
+[data-color-mode="dark"] .phone-shell .glass-input::placeholder {
   color: rgba(235, 235, 240, 0.42);
 }

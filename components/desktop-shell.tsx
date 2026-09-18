@@ -99,7 +99,8 @@ import {
   collectThemeAssetIds,
   getThemeAssetMap,
   readThemeProfile,
-  writeThemeProfile
+  writeThemeProfile,
+  THEME_PROFILE_UPDATED_EVENT
 } from "@/lib/theme-storage";
 import { THEME_PACKAGE_INSTALLED_EVENT } from "@/lib/theme-package";
 import {
@@ -1155,6 +1156,21 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
       window.removeEventListener("theme-css-updated", onThemeUpdate);
       window.removeEventListener("message", onIframeMessage);
     };
+  }, []);
+
+  // v0.8.0：外观的唯一事实源是 ThemeProfile（经 Appearance Bridge 广播）。
+  // 控制中心 / 其他标签页 / Bridge 辅助函数持久化的新 profile 到达时，
+  // 桌面直接采用；本组件自己的 applyTheme 写入会带相同 updatedAt，直接跳过，
+  // 草稿态（仅 onDraftChange、未持久化）不广播事件，因此不会被打断。
+  useEffect(() => {
+    const onAppearanceChanged = (event: Event) => {
+      const fresh = (event as CustomEvent<ThemeProfile>).detail;
+      if (!fresh || typeof fresh.updatedAt !== "string") return;
+      setSavedTheme((prev) => (prev.updatedAt === fresh.updatedAt ? prev : fresh));
+      setDraftTheme((prev) => (prev.updatedAt === fresh.updatedAt ? prev : fresh));
+    };
+    window.addEventListener(THEME_PROFILE_UPDATED_EVENT, onAppearanceChanged);
+    return () => window.removeEventListener(THEME_PROFILE_UPDATED_EVENT, onAppearanceChanged);
   }, []);
 
   const [themeAssets, setThemeAssets] = useState<Record<string, string>>(() => initialThemeAssets ?? {});
@@ -3761,6 +3777,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
     };
   }, [
     activeApp,
+    draftTheme.colorMode,
     draftTheme.wallpaperBlur,
     draftTheme.wallpaperOpacity,
     draftTheme.wallpaperScale,

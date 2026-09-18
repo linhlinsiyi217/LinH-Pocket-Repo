@@ -841,6 +841,15 @@ function DisplayColorPage({
     onDraftChange(normalizeThemeProfile({ ...draft, ...patch }));
   }
 
+  // colorMode 是全局外观开关（Appearance Bridge 单一事实源），点击即持久化：
+  // writeThemeProfile 广播后桌面 / 锁屏 / 设置的订阅同步变化，无需再点“应用”，
+  // 也不允许本页保留第二份 Light/Dark 本地状态。
+  function commitColorMode(mode: ThemeProfile["colorMode"]) {
+    const next = normalizeThemeProfile({ ...draft, colorMode: mode });
+    onDraftChange(next);
+    onApply(next);
+  }
+
   function handleApply() {
     const next = normalizeThemeProfile({ ...draft });
     onApply(next);
@@ -870,7 +879,7 @@ function DisplayColorPage({
                 <button
                   key={opt.key}
                   type="button"
-                  onClick={() => commit({ colorMode: opt.key })}
+                  onClick={() => commitColorMode(opt.key)}
                   className="flex-1 h-9 rounded-[12px] ts-12 font-medium transition-all duration-200 active:scale-[0.97]"
                   style={active ? {
                     background: "var(--c-panel)",

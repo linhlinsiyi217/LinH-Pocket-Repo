@@ -4,9 +4,11 @@
      data-skinned / data-borders，不改任何类名与结构。
    - 原理：只重映射 --c-* 语义变量。所有消费变量的文字、图标、
      表面会“自动反色”，无需逐组件改色。
-   - 作用域：:root[data-color-mode="dark"] .phone-shell，桌面端仅
-     手机壳内画面变暗，外部工作台保持原样；移动端配合
-     :root[data-color-mode="dark"] 把 overscroll 缝隙也填黑。
+   - 作用域：[data-color-mode="dark"] .phone-shell（<html> 上的属性由
+     Appearance Bridge 唯一写入），桌面端仅手机壳内画面变暗，外部工作台保持
+     原样；移动端配合 :root[data-color-mode="dark"] 把 overscroll 缝隙填黑。
+   - specificity 与旧版 .phone-shell[data-color-mode="dark"] 完全一致（0,2,0 /
+     0,2,n），不抬高优先级，自定义主题 / globalCustomCSS / 图标皮肤不被压掉。
    ═══════════════════════════════════════════════════════════ */
 
 /* 开关选中态跟随全局主色调；未设置主色调时退回系统绿 */
@@ -24,14 +26,14 @@
 }
 
 /* 夜间且未选主色时，强调按钮底色为近白 → 文字回退深色，避免白字白底 */
-:root[data-color-mode="dark"] .phone-shell .ui-btn-primary,
-:root[data-color-mode="dark"] .phone-shell .ui-btn-action,
-:root[data-color-mode="dark"] .phone-shell .ui-chip[data-selected] {
+[data-color-mode="dark"] .phone-shell .ui-btn-primary,
+[data-color-mode="dark"] .phone-shell .ui-btn-action,
+[data-color-mode="dark"] .phone-shell .ui-chip[data-selected] {
   color: var(--c-accent-contrast, #1c1c1e);
 }
 
 /* ── 夜间：核心 16 色 + 业务色重映射 ── */
-:root[data-color-mode="dark"] .phone-shell {
+[data-color-mode="dark"] .phone-shell {
   --c-header-bg: #1c1c1e;
   --c-page-body-bg: #000000;
   --c-card: rgba(44, 44, 46, 0.72);
@@ -68,7 +70,7 @@
 }
 
 /* 聊天 App 独立色板同步反色（聊天页面与全局主题隔离，需单独映射） */
-:root[data-color-mode="dark"] .phone-shell .chat-app {
+[data-color-mode="dark"] .phone-shell .chat-app {
   --c-header-bg: #1c1c1e;
   --c-page-body-bg: #000000;
   --c-card: #2c2c2e;
@@ -88,13 +90,13 @@
 }
 
 /* 滚动条在暗色下降存在感 */
-:root[data-color-mode="dark"] .phone-shell ::-webkit-scrollbar {
+[data-color-mode="dark"] .phone-shell ::-webkit-scrollbar {
   width: 0;
   height: 0;
 }
 
 /* ── 夜间：Pearl Glass 表面反色（本项目应用层，不覆盖用户主题引擎） ── */
-:root[data-color-mode="dark"] .phone-shell {
+[data-color-mode="dark"] .phone-shell {
   --color-text-primary: #f5f5f7;
   --color-text-secondary: #aeaeb2;
   --color-text-tertiary: #8e8e93;
@@ -106,10 +108,10 @@
 }
 
 /* 底部 Action Sheet / 居中弹窗：珍珠浅玻璃 → 深色液态玻璃 */
-:root[data-color-mode="dark"] .phone-shell .modal-sheet,
-:root[data-color-mode="dark"] .phone-shell .modal-dialog,
-:root[data-color-mode="dark"] .phone-shell .modal-expand,
-:root[data-color-mode="dark"] .phone-shell .glass-modal {
+[data-color-mode="dark"] .phone-shell .modal-sheet,
+[data-color-mode="dark"] .phone-shell .modal-dialog,
+[data-color-mode="dark"] .phone-shell .modal-expand,
+[data-color-mode="dark"] .phone-shell .glass-modal {
   background:
     linear-gradient(
       165deg,
@@ -125,21 +127,21 @@
     0 36px 80px rgba(0, 0, 0, 0.5);
 }
 
-:root[data-color-mode="dark"] .phone-shell .modal-sheet {
+[data-color-mode="dark"] .phone-shell .modal-sheet {
   box-shadow:
     inset 0 1px 1px rgba(255, 255, 255, 0.12),
     0 -8px 24px rgba(0, 0, 0, 0.36),
     0 -24px 60px rgba(0, 0, 0, 0.5);
 }
 
-:root[data-color-mode="dark"] .phone-shell .modal-overlay,
-:root[data-color-mode="dark"] .phone-shell .glass-overlay,
-:root[data-color-mode="dark"] .phone-shell .widget-picker-overlay {
+[data-color-mode="dark"] .phone-shell .modal-overlay,
+[data-color-mode="dark"] .phone-shell .glass-overlay,
+[data-color-mode="dark"] .phone-shell .widget-picker-overlay {
   background: rgba(0, 0, 0, 0.5);
 }
 
 /* 长按菜单：珍珠白 → 深玻璃 */
-:root[data-color-mode="dark"] .phone-shell .ctx-menu {
+[data-color-mode="dark"] .phone-shell .ctx-menu {
   background:
     linear-gradient(
       150deg,
@@ -154,21 +156,21 @@
     0 20px 48px rgba(0, 0, 0, 0.5);
 }
 
-:root[data-color-mode="dark"] .phone-shell .ctx-menu-btn:active {
+[data-color-mode="dark"] .phone-shell .ctx-menu-btn:active {
   background: rgba(255, 255, 255, 0.12);
 }
 
-:root[data-color-mode="dark"] .phone-shell .ctx-menu-btn:not(:last-of-type) {
+[data-color-mode="dark"] .phone-shell .ctx-menu-btn:not(:last-of-type) {
   border-right-color: rgba(255, 255, 255, 0.12);
 }
 
-:root[data-color-mode="dark"] .phone-shell .ctx-menu-triangle {
+[data-color-mode="dark"] .phone-shell .ctx-menu-triangle {
   border-bottom-color: #343438 !important;
   filter: drop-shadow(0 -1px 0 rgba(255, 255, 255, 0.14));
 }
 
 /* 设置页分组 / 卡片（Pearl 应用层） */
-:root[data-color-mode="dark"] .phone-shell .settings-group {
+[data-color-mode="dark"] .phone-shell .settings-group {
   background: rgba(44, 44, 46, 0.6);
   border-color: rgba(255, 255, 255, 0.1);
   box-shadow:
@@ -176,16 +178,16 @@
     0 12px 30px rgba(0, 0, 0, 0.35);
 }
 
-:root[data-color-mode="dark"] .phone-shell .settings-cell + .settings-cell {
+[data-color-mode="dark"] .phone-shell .settings-cell + .settings-cell {
   border-top-color: rgba(255, 255, 255, 0.08);
 }
 
-:root[data-color-mode="dark"] .phone-shell .settings-cell:active {
+[data-color-mode="dark"] .phone-shell .settings-cell:active {
   background: rgba(255, 255, 255, 0.1);
 }
 
-:root[data-color-mode="dark"] .phone-shell .settings-main-menu .app-card,
-:root[data-color-mode="dark"] .phone-shell .settings-main-menu .settings-account-card {
+[data-color-mode="dark"] .phone-shell .settings-main-menu .app-card,
+[data-color-mode="dark"] .phone-shell .settings-main-menu .settings-account-card {
   background:
     linear-gradient(
       145deg,
@@ -201,7 +203,7 @@
 }
 
 /* 小组件添加面板 */
-:root[data-color-mode="dark"] .phone-shell .widget-picker-sheet {
+[data-color-mode="dark"] .phone-shell .widget-picker-sheet {
   color: #f5f5f7;
   background:
     linear-gradient(
@@ -216,14 +218,14 @@
     0 -10px 40px rgba(0, 0, 0, 0.45);
 }
 
-:root[data-color-mode="dark"] .phone-shell .widget-picker-sheet .wm-header span,
-:root[data-color-mode="dark"] .phone-shell .widget-picker-sheet .wm-header .ui-bare-btn,
-:root[data-color-mode="dark"] .phone-shell .widget-picker-sheet .wm-cat-name {
+[data-color-mode="dark"] .phone-shell .widget-picker-sheet .wm-header span,
+[data-color-mode="dark"] .phone-shell .widget-picker-sheet .wm-header .ui-bare-btn,
+[data-color-mode="dark"] .phone-shell .widget-picker-sheet .wm-cat-name {
   color: #f5f5f7;
 }
 
 /* 非玻璃主题 Dock 珍珠增强的暗色版 */
-:root[data-color-mode="dark"] .phone-shell[data-icon-effect]:not([data-icon-effect="glass"])
+[data-color-mode="dark"] .phone-shell[data-icon-effect]:not([data-icon-effect="glass"])
   .dock:not([data-skinned]):not([data-borders="on"]) {
   border-color: rgba(255, 255, 255, 0.12);
   background:
@@ -261,4 +263,11 @@
   --c-accent-surface-strong: color-mix(in srgb, var(--c-accent) 38%, transparent);
   --c-accent-tint: color-mix(in srgb, var(--c-accent) 12%, transparent);
   --c-accent-tint-glow: color-mix(in srgb, var(--c-accent) 22%, transparent);
+}
+
+/* ── 锁屏表面 token 暗色重映射（锁屏在 .phone-shell 之外，需在 :root 作用域；
+   锁屏私有 --lock-* 令牌见 base.css）。与上方同款 (0,2,0) specificity。 ── */
+:root[data-color-mode="dark"] {
+  --c-lock-surface-bg: #0a0a0c;
+  --c-lock-clock-color: #f5f5f7;
 }
