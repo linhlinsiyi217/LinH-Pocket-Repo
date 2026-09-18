@@ -721,6 +721,108 @@ function buildColor(hex: string, alpha: number): string {
    修改即实时预览（draft 直接驱动外壳），「应用」持久化。
    不触碰 data-icon-effect / data-skinned / data-borders 主题引擎。
    ══════════════════════════════════════════ */
+/**
+ * 主题联动缩略图：直接消费 :root 上的统一 token（与真实 .phone-wallpaper-tint
+ * 和 .ios-lock-accent-tint 完全同源），取色器拖动即可看到桌面/锁屏同步变色。
+ */
+function ThemeSurfaceThumb({ label, variant, isDark }: { label: string; variant: "home" | "lock"; isDark: boolean }) {
+  const glow = variant === "home"
+    ? "var(--c-accent-tint-glow, rgba(60,130,210,0.16))"
+    : "var(--c-lock-tint-glow, rgba(60,130,210,0.18))";
+  const wash = variant === "home"
+    ? "var(--c-accent-tint, rgba(60,130,210,0.08))"
+    : "var(--c-lock-tint, rgba(60,130,210,0.10))";
+  const base = isDark
+    ? "linear-gradient(160deg,#232328 0%,#101013 100%)"
+    : variant === "home"
+      ? "linear-gradient(155deg,#f6f9fc 0%,#dde5ee 100%)"
+      : "linear-gradient(145deg,#f8fafc 0%,#e3e8ef 55%,#d2d9e2 100%)";
+  const background = [
+    `radial-gradient(135% 95% at 88% -10%, ${glow} 0%, transparent 58%)`,
+    variant === "home"
+      ? `radial-gradient(110% 80% at -10% 110%, ${wash} 0%, transparent 60%)`
+      : `linear-gradient(165deg, ${wash} 0%, transparent 55%)`,
+    base,
+  ].join(",");
+  const ink = isDark ? "rgba(255,255,255,0.85)" : "#4b515b";
+  const glass = isDark
+    ? "rgba(255,255,255,0.12) border-white/15"
+    : "rgba(255,255,255,0.42) border-white/55";
+
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <div
+        className="relative h-[118px] w-full overflow-hidden rounded-2xl border border-[var(--c-card-border)]"
+        style={{ background }}
+      >
+        {/* 模拟状态栏 */}
+        <div className="absolute inset-x-3 top-2 flex items-center justify-between">
+          <span className="text-[8px] font-semibold" style={{ color: ink }}>9:41</span>
+          <span className="h-[7px] w-7 rounded-full bg-black/70" />
+          <span className="h-[5px] w-5 rounded-[2px]" style={{ border: `1px solid ${ink}`, opacity: 0.55 }} />
+        </div>
+
+        {variant === "lock" ? (
+          <div className="absolute inset-x-0 top-[24px] flex flex-col items-center">
+            <span className="text-[8px] font-medium" style={{ color: ink }}>周四 1月1日</span>
+            <span
+              className="text-[28px] font-extralight leading-none tracking-tight"
+              style={{ color: isDark ? "rgba(255,255,255,0.9)" : "#565d68" }}
+            >
+              02:20
+            </span>
+            <div className={`mt-2 flex items-center gap-1.5 rounded-lg border ${glass} px-2 py-1 backdrop-blur-md`}>
+              <span
+                className="grid h-4 w-4 place-items-center rounded-full"
+                style={{ background: "var(--c-accent-surface, rgba(60,130,210,0.16))" }}
+              >
+                <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--c-accent, #3c82d2)" }} />
+              </span>
+              <span className="h-1 w-8 rounded-full" style={{ background: ink, opacity: 0.25 }} />
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* 图标网格：首块为主色派生的 icon tile tint */}
+            <div className="absolute inset-x-4 top-[22px] grid grid-cols-4 gap-2">
+              {Array.from({ length: 8 }).map((_, index) => (
+                <span
+                  key={index}
+                  className="h-5 w-5 rounded-[7px] border backdrop-blur-sm"
+                  style={
+                    index === 0
+                      ? {
+                          background: "var(--c-accent-surface, rgba(60,130,210,0.16))",
+                          borderColor: "var(--c-accent-tint-glow, rgba(60,130,210,0.25))",
+                        }
+                      : { background: isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.5)", borderColor: "transparent" }
+                  }
+                />
+              ))}
+            </div>
+            {/* dock 玻璃条 */}
+            <div className={`absolute inset-x-3 bottom-2 flex h-7 items-center justify-around rounded-xl border ${glass} backdrop-blur-md`}>
+              {Array.from({ length: 4 }).map((_, index) => (
+                <span
+                  key={index}
+                  className="h-4 w-4 rounded-md"
+                  style={{
+                    background:
+                      index === 3
+                        ? "var(--c-accent, #3c82d2)"
+                        : isDark ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.65)",
+                  }}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+      <span className="ts-10 text-[var(--c-text)]">{label}</span>
+    </div>
+  );
+}
+
 function DisplayColorPage({
   draft,
   onDraftChange,
@@ -814,8 +916,15 @@ function DisplayColorPage({
               />
             </label>
           </div>
+
+          {/* 桌面 / 锁屏联动预览：种子色经统一 token 同步着色，取色器拖动即实时变化 */}
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <ThemeSurfaceThumb label="桌面" variant="home" isDark={isDark} />
+            <ThemeSurfaceThumb label="锁屏" variant="lock" isDark={isDark} />
+          </div>
+
           <p className="ts-10 mt-2 leading-relaxed text-[var(--c-text)]">
-            文字与图标会根据日/夜间与主色自动反色，保证在任何背景上都清晰可读。
+            桌面壁纸、锁屏背景、按钮与开关都从同一个主色派生；壁纸仅轻度着色，拖动取色器即可看到全部表面联动。
           </p>
         </div>
       </div>

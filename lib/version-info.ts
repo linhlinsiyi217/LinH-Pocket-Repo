@@ -8,7 +8,7 @@
  *   彩色只允许出现在更新日志面板与更新弹窗。
  */
 
-export const APP_VERSION = "0.6.1";
+export const APP_VERSION = "0.6.2";
 
 export type ChangelogKind = "feature" | "fix" | "adjust" | "patch";
 
@@ -32,6 +32,15 @@ export const CHANGELOG_KIND_META: Record<ChangelogKind, { label: string; color: 
 
 /** 完整更新日志，新的在前。发版时在数组头部插入新版本，同时升 APP_VERSION。 */
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: "0.6.2",
+    date: "2026-09-19",
+    entries: [
+      { kind: "fix", text: "修复设置等页面顶部黑色安全区：manifest 主题/背景色改为浅色、壳层背景链统一，浅色页顶部不再突兀变黑，深色页一体化" },
+      { kind: "adjust", text: "统一全局主题色系统：主色作为单一种子色派生出强调、染面、壁纸/锁屏着色等语义 token，桌面、锁屏、设置与按钮同属一个色彩家族，壁纸仅轻度着色" },
+      { kind: "fix", text: "修复「锁屏密码」设置页条目挤压：改为规范双行布局（图标固定 / 正文伸缩 / 尾部固定），副标题支持换行、底部说明文案正常多行，多种宽度下不再重叠" },
+    ],
+  },
   {
     version: "0.6.1",
     date: "2026-09-18",

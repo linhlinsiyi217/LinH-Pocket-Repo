@@ -340,6 +340,9 @@ export default function IOSKoreanLockScreen({ onUnlock }: { onUnlock?: () => voi
           />
 
           <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-slate-500/10" />
+
+          {/* 全局主色轻度着色：与桌面壁纸 / 设置 / 按钮同一色彩家族（token 来自 :root） */}
+          <div className="ios-lock-accent-tint pointer-events-none absolute inset-0" aria-hidden />
         </div>
 
         {/* subtle top haze */}

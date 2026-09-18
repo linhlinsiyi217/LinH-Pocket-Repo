@@ -104,7 +104,7 @@ import {
   resolveActiveIconSkins,
   type ThemeProfile
 } from "@/lib/theme-types";
-import { getReadableOnColor, hexToRgbChannels } from "@/lib/color-utils";
+import { buildAccentTokensCSS, buildAccentPhoneShellAliasesCSS, buildAccentResetCSS } from "@/lib/theme-accent";
 import { GRID_COLS, GRID_ROWS, WIDGET_SIZE_CELLS, WIDGET_CATALOG, type WidgetInstance, type WidgetType } from "@/lib/widget-types";
 import { buildOccupancyGrid, canPlaceWidget, placeWidget, createDefaultWidgets, loadWidgets, saveWidgets, loadDIYTemplates, saveDIYTemplates } from "@/lib/widget-storage";
 import {
@@ -1422,20 +1422,16 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
     }
     const blocks: string[] = [`:root {\n${vars.join("\n")}\n}`];
 
-    // ── 全局主色调（Accent）：仅在用户选色后下发，作用域限定 .phone-shell，
-    //    不影响桌面端外壳工作台；文字反色由亮度自动计算后经变量给出。 ──
+    // ── 全局主色调（Accent）：种子色 → 统一语义 token，见 lib/theme-accent.ts。
+    //    token 本体下发到 :root，锁屏 / 密码页（phone-shell 之外）也共享同一套；
+    //    .phone-shell 内的业务别名（图标激活色 / 聊天蓝）仍在此映射。
+    //    草稿态实时生效，因此本样式在 <head> 中位于持久化注入器之后。
     const accent = (draftTheme.accentColor || "").trim();
     if (accent) {
-      const contrast = getReadableOnColor(accent);
-      const rgb = hexToRgbChannels(accent);
-      blocks.push(`.phone-shell {
-  --c-accent: ${accent};
-  --c-accent-rgb: ${rgb};
-  --c-accent-contrast: ${contrast};
-  --c-accent-soft: rgba(${rgb}, 0.14);
-  --c-icon-active: ${accent};
-  --c-action-blue: ${accent};
-}`);
+      blocks.push(buildAccentTokensCSS(accent));
+      blocks.push(buildAccentPhoneShellAliasesCSS(accent));
+    } else {
+      blocks.push(buildAccentResetCSS());
     }
     return blocks.join("\n");
   }, [cssOverrides, resolvedFontFamily, draftTheme.accentColor]);
@@ -4191,6 +4187,9 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
               } as React.CSSProperties}
             >
               <div className="phone-wallpaper" style={wallpaperStyle} />
+              {/* 全局主色轻度着色层：widget / dock 玻璃会自然透出这层色调，
+                  与锁屏 / 设置同属一个色彩家族。App 打开时随壁纸一起隐藏。 */}
+              <div className="phone-wallpaper-tint" aria-hidden />
 
               <header className="phone-status-bar">
                 <StatusClock />

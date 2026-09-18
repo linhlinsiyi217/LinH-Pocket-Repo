@@ -239,3 +239,16 @@
     background: #000000 !important;
   }
 }
+
+/* ── 统一主色 token 的夜间派生：仍是同一颗种子色，只把半透明衍生色
+   在深色表面上加深，保证 tint / 染面在黑底上也能被感知。
+   未设置主色时 --c-accent 为 guaranteed-invalid，这些声明随之失效，
+   消费处的 var fallback（透明 / 默认色）自动生效。
+   锁屏壁纸始终是浅底，保持亮色的 lock tint 强度，不在此覆盖。 ── */
+:root[data-color-mode="dark"] {
+  --c-accent-soft: color-mix(in srgb, var(--c-accent) 24%, transparent);
+  --c-accent-surface: color-mix(in srgb, var(--c-accent) 26%, transparent);
+  --c-accent-surface-strong: color-mix(in srgb, var(--c-accent) 38%, transparent);
+  --c-accent-tint: color-mix(in srgb, var(--c-accent) 12%, transparent);
+  --c-accent-tint-glow: color-mix(in srgb, var(--c-accent) 22%, transparent);
+}

@@ -18,7 +18,9 @@ body {
 
 body {
   color: var(--c-text-title);
-  background: var(--c-input);
+  /* 与 App Shell 同底色：overscroll / 安全区缝隙不露出浏览器默认白底或黑块，
+     移动端暗色由 color-mode.css 的 !important 规则统一填黑。 */
+  background: var(--c-page-body-bg, #f1f2f6);
   font-family: var(--app-font-family);
 }
 
@@ -60,7 +62,7 @@ a {
   width: min(1120px, 92vw);
   margin: 0 auto;
   padding: 24px 0 40px;
-  background: var(--c-input);
+  background: var(--c-page-body-bg, #f1f2f6);
 }
 
 .splash-shell-wrap {
@@ -416,6 +418,14 @@ a {
      避让刘海/灵动岛/底部手势区，不写死任何像素高度。 */
 .ios-lock-content {
   padding-top: 54px;
+}
+
+/* 锁屏主色 tint：种子色派生的薄雾色（亮色 alpha 10%/16%），让锁屏背景与
+   桌面壁纸属于同一色彩家族；无主色时 var fallback 为透明，外观不变。 */
+.ios-lock-accent-tint {
+  background:
+    radial-gradient(140% 95% at 88% -8%, var(--c-lock-tint-glow, transparent) 0%, transparent 58%),
+    linear-gradient(165deg, var(--c-lock-tint, transparent) 0%, transparent 55%);
 }
 
 /* 锁屏大时间：作为正常文本整体排版，绝不逐字符定位。
@@ -812,6 +822,67 @@ a {
 .lock-passcode-primary:active {
   transform: scale(0.97);
   opacity: 0.85;
+}
+
+/* ── 锁屏密码子页：规范双行 row ──
+   icon 固定 / 正文可伸缩(min-width:0) / 尾部固定(min-width 保底) 三段式，
+   副标题允许换行（最多 2 行）而非单行省略号截断，避免与尾部“4 位 + chevron”
+   挤压重叠；说明文案正常多行换行、留足与上方列表的间距。 */
+.lock-passcode-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lock-passcode-settings .menu-item.settings-tools-menu-item {
+  min-height: 62px;
+  padding-top: 14px;
+  padding-bottom: 14px;
+  gap: 12px;
+}
+
+.lock-passcode-settings .menu-item.settings-tools-menu-item .card-icon {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+}
+
+.lock-passcode-settings .settings-tools-menu-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 3px;
+}
+
+.lock-passcode-settings .settings-tools-menu-desc {
+  white-space: normal;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: clip;
+}
+
+.lock-passcode-settings .settings-tools-menu-toggle,
+.lock-passcode-settings .menu-right.settings-update-row-right {
+  flex: 0 0 auto;
+  margin-left: 12px;
+  gap: 4px;
+}
+
+.lock-passcode-settings .lock-passcode-length-value {
+  margin-right: 0;
+  white-space: nowrap;
+}
+
+.lock-passcode-settings .lock-passcode-note {
+  margin: 0 6px;
+  padding: 0 4px;
+  max-width: 100%;
+  font-size: 11.5px;
+  line-height: 1.65;
+  color: var(--c-text, #8e8e93);
 }
 
 /* 真机：密码卡片与锁屏一样铺满动态视口 */

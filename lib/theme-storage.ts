@@ -3,6 +3,7 @@ import { kvGet, kvSet, kvRemove, registerKvMigration } from "./kv-db";
 import { openIndexedDbAtLeast } from "./idb-open";
 
 export const THEME_PROFILE_STORAGE_KEY = "ai_phone_theme_profile_v1";
+export const THEME_PROFILE_UPDATED_EVENT = "ai-phone-theme-profile-updated";
 registerKvMigration(THEME_PROFILE_STORAGE_KEY);
 
 const THEME_DB_NAME = "ai_phone_theme_db_v1";
@@ -338,6 +339,14 @@ export function writeThemeProfile(profile: ThemeProfile): ThemeProfile {
 
   if (hasLocalStorage()) {
     kvSet(THEME_PROFILE_STORAGE_KEY, JSON.stringify(normalized));
+    // 通知不依赖 React 树的全局注入器（如锁屏前的主色 token 同步器）
+    if (typeof window !== "undefined") {
+      try {
+        window.dispatchEvent(new CustomEvent(THEME_PROFILE_UPDATED_EVENT, { detail: normalized }));
+      } catch {
+        // CustomEvent 在部分旧 webview 不可用，忽略即可
+      }
+    }
   }
 
   return normalized;

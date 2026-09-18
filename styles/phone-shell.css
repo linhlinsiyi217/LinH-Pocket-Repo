@@ -125,7 +125,9 @@
   display: flex;
   flex-direction: column;
   border-radius: var(--phone-screen-radius);
-  background: #ffffff;
+  /* 跟随当前页面底色（亮色浅灰 / 夜间黑），壁纸隐藏或 App 透明过渡时
+     不露突兀白块或黑块；开屏 boot-splash 自身用 !important 黑底覆盖。 */
+  background: var(--c-page-body-bg, #ffffff);
   overflow: hidden;
   padding: 12px;
   isolation: isolate;
@@ -151,6 +153,25 @@
   background-position: center;
   background-size: cover;
   transition: opacity 220ms ease;
+}
+
+/* 全局主色壁纸着色：同一颗种子色派生的极轻 wash（alpha 6%/12%，夜间在
+   color-mode.css 略增强），只做轻度 tint、不重染色。dock / widget 的玻璃
+   模糊会自然透出这层色调，无需逐组件改色。无主色时 var fallback 为透明。 */
+.phone-wallpaper-tint {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease;
+  background:
+    radial-gradient(135% 95% at 88% -10%, var(--c-accent-tint-glow, transparent) 0%, transparent 58%),
+    radial-gradient(115% 85% at -10% 110%, var(--c-accent-tint, transparent) 0%, transparent 62%);
+}
+
+.phone-shell.app-open-shell .phone-wallpaper-tint {
+  opacity: 0;
+  transition-duration: 0s;
 }
 
 /* ── Status bar ── */
@@ -1086,21 +1107,21 @@
   :root {
     --phone-screen-width: 100vw;
     /* 动态视口：visualViewport 实时写入 --vh，安卓工具栏伸缩不留白 */
-    --phone-screen-height: calc(var(--vh, 1lvh) * 100);
+    --phone-screen-height: calc(var(--vh, 1dvh) * 100);
   }
 
   html,
   body {
     overflow: hidden;
     width: 100%;
-    height: calc(var(--vh, 1lvh) * 100);
+    height: calc(var(--vh, 1dvh) * 100);
     /* 背景层：铺满全屏、不加 padding，壁纸/底色直接延伸到系统栏底下 */
     background: var(--c-page-body-bg);
   }
 
   .app-root {
     width: 100vw;
-    height: calc(var(--vh, 1lvh) * 100);
+    height: calc(var(--vh, 1dvh) * 100);
     padding: 0;
     display: flex;
     justify-content: flex-start;
@@ -1156,7 +1177,7 @@
 
   .app-root.splash-root {
     width: 100vw;
-    height: calc(var(--vh, 1lvh) * 100);
+    height: calc(var(--vh, 1dvh) * 100);
     margin: 0;
     padding: 0;
     display: flex;

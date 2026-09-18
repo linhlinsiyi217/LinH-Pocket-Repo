@@ -9,6 +9,7 @@ import IOSKoreanLockScreen from "@/components/ios-korean-lock-screen";
 import { PasscodeScreen } from "@/components/passcode-screen";
 import { RealityBridgeScheduler } from "@/components/reality-bridge-scheduler";
 import { MediaMaintenanceScheduler } from "@/components/media-maintenance-scheduler";
+import { ThemeAccentStyle } from "@/components/theme-accent-style";
 import { DesktopShell } from "./desktop-shell";
 import { OfflinePushRevampAnnouncement } from "./offline-push-revamp-announcement";
 import { UpdateNotice } from "./update-notice";
@@ -293,6 +294,8 @@ export function MainApp() {
 
   return (
     <AccountGate>
+      {/* 统一主色 token：首帧即生效，锁屏/密码页（phone-shell 之外）也能取到 */}
+      <ThemeAccentStyle />
       {phase === "boot" && (
         <BootSplash onFinish={() => setPhase(hasPendingMcpOAuthCallback() ? "home" : "locked")} />
       )}
