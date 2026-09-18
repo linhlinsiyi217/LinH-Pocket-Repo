@@ -13,6 +13,7 @@ import {
   subscribeAppearance,
   type AppearanceSnapshot
 } from "@/lib/appearance-bridge";
+import { hydrateKvDb } from "@/lib/kv-db";
 
 const STYLE_ELEMENT_ID = "ai-phone-appearance-bridge";
 
@@ -53,14 +54,27 @@ export function AppearanceBridgeProvider(): null {
 
   // 挂载即同步（layout 阶段先于首帧绘制，避免明暗闪烁）
   useEffect(() => {
+    let cancelled = false;
     const current = getAppearanceSnapshot();
     setSnapshot(current);
     applyToDocument(current);
     const unsubscribe = subscribeAppearance((next) => {
+      if (cancelled) return;
       setSnapshot(next);
       applyToDocument(next);
     });
-    return unsubscribe;
+    // KvDB 水合完成前 readThemeProfile 只能拿到默认值；水合是幂等单例，
+    // 完成后必须重读一次，否则老用户的暗/亮设置不会反映到 <html>。
+    void hydrateKvDb().then(() => {
+      if (cancelled) return;
+      const hydrated = getAppearanceSnapshot();
+      setSnapshot(hydrated);
+      applyToDocument(hydrated);
+    });
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, []);
 
   // 每次快照变更也兜底应用一次（严格模式双调用下幂等）
