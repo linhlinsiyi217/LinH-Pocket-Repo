@@ -55,6 +55,9 @@ export function buildAccentTokensCSS(input: string | undefined | null): string {
   --c-accent-tint-glow: rgba(${rgb}, 0.12);
   --c-lock-tint: rgba(${rgb}, 0.10);
   --c-lock-tint-glow: rgba(${rgb}, 0.16);
+  /* 图标玻璃染色（icon tile tint）：图标盒 / Dock / 文件夹的雾面洗色
+     与壁纸 tint、锁屏 tint 同源；CSS 中只以 5–8% 低透明度消费。 */
+  --c-desktop-icon-bg: ${accent};
 }`;
 }
 
@@ -88,5 +91,6 @@ export function buildAccentResetCSS(): string {
   --c-accent-tint-glow: initial;
   --c-lock-tint: initial;
   --c-lock-tint-glow: initial;
+  --c-desktop-icon-bg: initial;
 }`;
 }

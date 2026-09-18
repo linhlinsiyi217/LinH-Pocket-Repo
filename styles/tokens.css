@@ -38,6 +38,11 @@
   --c-bubble-other: #FFFFFF;
   /* 对方气泡 */
 
+  /* ── 锁屏表面（与页面底色同一冷灰家族，壁纸未加载/缝隙期也不显异色；
+       不允许硬编码十六进制，暗色在 color-mode.css 统一重映射） ── */
+  --c-lock-surface-bg: #E9EDF2;
+  --c-lock-clock-color: #565D68;
+
   /* ── 功能色 3 ── */
   --c-success: #34C759;
   --c-danger: #FF3B30;
@@ -54,7 +59,9 @@
 
   /* ── 桌面系统图标专属配色（实心） ── */
   --c-desktop-icon: #ffffff;
-  --c-desktop-icon-bg: #c7b8ff;
+  /* 玻璃图标染色：默认中性珍珠白（无彩），由主题引擎在用户选择主色时
+     覆盖为种子色；高级桌面定制器的显式自定义仍以 .phone-shell 作用域优先生效。 */
+  --c-desktop-icon-bg: #ffffff;
   --c-desktop-icon-box: rgba(255, 255, 255, 0.01);
 
   /* ── 图标色板 9（全部 flat hex） ── */

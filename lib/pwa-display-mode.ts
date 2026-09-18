@@ -88,6 +88,40 @@ export function isInstalledPwa(): boolean {
 }
 
 /**
+ * 是否为 iOS / iPadOS 设备。
+ * 必须与 Android 分开处理沉浸布局：iOS 安装的 PWA 永远报 standalone，
+ * 其系统状态栏区域由 webview 绘制，项目用模拟状态栏承接系统区；
+ * Android 安装 PWA 的真实系统栏由 Chrome 绘制，再保留模拟栏会形成双状态栏。
+ */
+export function isIosDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  if (/iPhone|iPad|iPod/i.test(ua)) return true;
+  // iPadOS 13+ 桌面 UA：Intel Mac + 触屏
+  const nav = navigator as Navigator & { standalone?: boolean };
+  if (/Macintosh/i.test(ua) && typeof nav.maxTouchPoints === "number" && nav.maxTouchPoints > 1) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * 是否应让 Web UI 进入「系统区沉浸」布局（隐藏模拟状态栏、内容按 env 安全区避让）。
+ *
+ * 成立条件（满足其一）：
+ * 1. 用户显式选择「显示系统状态栏」（cookie=standalone）；
+ * 2. Android/其他平台已安装到桌面的 PWA（standalone 或 fullscreen display-mode）。
+ *
+ * iOS 安装 PWA 且用户未显式选择时不成立：保留模拟状态栏承接系统状态栏区域，
+ * 避免 iOS 用户静默丢失模拟状态栏（历史行为）。
+ */
+export function shouldUseImmersiveSystemLayout(): boolean {
+  if (typeof window === "undefined") return false;
+  if (readPwaDisplayPreference(document.cookie) === "standalone") return true;
+  return isInstalledPwa() && !isIosDevice();
+}
+
+/**
  * 普通手机浏览器里的「一次性手势全屏」兜底（主 App 已不使用，仅独立窗口的
  * world-builder 保留）。规则：
  * - 已是安装版 PWA（standalone/fullscreen）→ 直接跳过；

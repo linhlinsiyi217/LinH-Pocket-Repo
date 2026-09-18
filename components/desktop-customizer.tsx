@@ -39,7 +39,7 @@ function buildColor(hex: string, alpha: number): string {
 const DEFAULT_COLOR_VALUES: Record<string, string> = {
   "--c-desktop-icon-box": "rgba(255, 255, 255, 0.01)",
   "--c-desktop-icon": "#ffffff",
-  "--c-desktop-icon-bg": "#c7b8ff",
+  "--c-desktop-icon-bg": "#ffffff",
   "--c-home-label": "#4A4A4A",
   "--c-home-text": "rgba(0, 0, 0, 0.65)",
   "--c-home-sub": "rgba(0, 0, 0, 0.35)",

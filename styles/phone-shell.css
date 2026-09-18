@@ -465,15 +465,16 @@
   padding: 0;
   cursor: pointer;
   box-shadow: none;
-  /* grid-row/grid-column 不可过渡（让位平滑由 JS FLIP 实现） */
-  transition: transform 0.4s cubic-bezier(0.25, 1.25, 0.3, 1), opacity 0.3s ease;
+  /* grid-row/grid-column 不可过渡（让位平滑由 JS FLIP 实现）。
+     统一克制动效：松手 settle 用 280ms 标准曲线，不再整排元素大弹性。 */
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease;
 }
 
 .icon-item:active,
 .dock-item:active {
-  transform: scale(0.88);
-  opacity: 0.8;
-  transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.1s ease;
+  /* 统一按压语言：140ms、scale(0.98)、无过冲 */
+  transform: scale(0.98);
+  transition: transform 0.14s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.14s ease;
 }
 
 .icon-glyph-box {
@@ -490,22 +491,24 @@
   box-shadow: none;
 }
 
-/* Base Effects overrides for icon-glyph-box */
-/* 立体打光整体减淡：斜光层次保留，各层高光强度降约四成，凸面感变弱 */
+/* Pearl Glass 图标盒（data-icon-effect="glass"）：
+   - 模糊/圆角/阴影全部消费 --pg-* 令牌，不写裸值；
+   - 染色只来自种子色（--c-desktop-icon-bg 默认中性珍珠白，主色开启后跟随主色）；
+   - 无主色时不产生任何彩色 glow，边缘只留极轻珍珠 rim。 */
 .phone-shell[data-icon-effect="glass"] .icon-glyph-box {
   background:
     linear-gradient(135deg,
-      rgba(255, 255, 255, 0.17),
-      color-mix(in srgb, var(--c-desktop-icon-bg, #c7b8ff) 6%, transparent),
-      rgba(255, 255, 255, 0.07)),
+      rgba(255, 255, 255, 0.14),
+      color-mix(in srgb, var(--c-desktop-icon-bg, #ffffff) 6%, transparent),
+      rgba(255, 255, 255, 0.06)),
     color-mix(in srgb, var(--c-desktop-icon-box, #ffffff) 38%, transparent);
-  backdrop-filter: blur(22px) saturate(140%);
-  -webkit-backdrop-filter: blur(22px) saturate(140%);
+  backdrop-filter: blur(var(--pg-blur-md, 22px)) saturate(var(--glass-saturate, 140%));
+  -webkit-backdrop-filter: blur(var(--pg-blur-md, 22px)) saturate(var(--glass-saturate, 140%));
   box-shadow:
-    inset 0 1px 2px rgba(255, 255, 255, 0.28),
-    inset 0 -1px 1px rgba(255, 255, 255, 0.05),
-    0 8px 32px rgb(0 0 0 / calc(0.15 * var(--desktop-shadow-strength, 0))),
-    0 0 18px color-mix(in srgb, var(--c-desktop-icon-bg, #c7b8ff) 8%, transparent);
+    inset 0 1px 1px rgba(255, 255, 255, 0.22),
+    inset 0 -1px 1px rgba(255, 255, 255, 0.04),
+    0 8px 32px rgb(0 0 0 / calc(0.12 * var(--desktop-shadow-strength, 0))),
+    0 0 14px var(--c-accent-tint, transparent);
   isolation: isolate;
   transform: translateZ(0);
   will-change: transform;
@@ -531,15 +534,16 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  padding: 1.5px;
+  padding: 1px;
   pointer-events: none;
   z-index: 3;
+  /* 极轻珍珠 rim：只保留顶部一丝高光，不做纯白粗边框 */
   background:
     linear-gradient(135deg,
-      rgba(255, 255, 255, 0.48),
-      rgba(255, 255, 255, 0.14) 40%,
-      rgba(255, 255, 255, 0.12) 62%,
-      rgba(255, 255, 255, 0.18));
+      rgba(255, 255, 255, 0.34),
+      rgba(255, 255, 255, 0.08) 42%,
+      rgba(255, 255, 255, 0.06) 64%,
+      rgba(255, 255, 255, 0.12));
   -webkit-mask:
     linear-gradient(#fff 0 0) content-box,
     linear-gradient(#fff 0 0);
@@ -548,8 +552,8 @@
 }
 
 .phone-shell[data-glass-pass="1"][data-icon-effect="glass"] .icon-glyph-box {
-  backdrop-filter: blur(22.01px) saturate(140%);
-  -webkit-backdrop-filter: blur(22.01px) saturate(140%);
+  backdrop-filter: blur(calc(var(--pg-blur-md, 22px) + 0.01px)) saturate(var(--glass-saturate, 140%));
+  -webkit-backdrop-filter: blur(calc(var(--pg-blur-md, 22px) + 0.01px)) saturate(var(--glass-saturate, 140%));
 }
 
 .phone-shell[data-icon-effect="transparent"] .icon-glyph-box {
@@ -862,22 +866,23 @@
   -webkit-backdrop-filter: blur(calc(var(--ui-blur-heavy) + 0.01px)) saturate(var(--ui-saturate));
 }
 
-/* 立体打光整体减淡：与图标同步降约四成 */
+/* Pearl Glass Dock：覆盖在壁纸上的一整块柔和珍珠玻璃。
+   模糊消费 --pg-blur-lg，染色只来自种子色，透明度足够低、壁纸仍是视觉主体。 */
 .phone-shell[data-icon-effect="glass"] .dock:not([data-skinned]) {
   background:
     linear-gradient(135deg,
-      rgba(255, 255, 255, 0.14),
-      color-mix(in srgb, var(--c-desktop-icon-bg, #c7b8ff) 5%, transparent),
+      rgba(255, 255, 255, 0.12),
+      color-mix(in srgb, var(--c-desktop-icon-bg, #ffffff) 5%, transparent),
       rgba(255, 255, 255, 0.05)),
     color-mix(in srgb, var(--c-home-glass, rgba(255, 255, 255, 0.3)) 55%, transparent);
   border: none;
-  backdrop-filter: blur(24px) saturate(140%);
-  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  backdrop-filter: blur(var(--pg-blur-lg, 30px)) saturate(var(--glass-saturate, 140%));
+  -webkit-backdrop-filter: blur(var(--pg-blur-lg, 30px)) saturate(var(--glass-saturate, 140%));
   box-shadow:
-    inset 0 1px 2px rgba(255, 255, 255, 0.26),
+    inset 0 1px 1px rgba(255, 255, 255, 0.2),
     inset 0 -1px 1px rgba(255, 255, 255, 0.04),
-    0 8px 32px rgb(0 0 0 / calc(0.14 * var(--desktop-shadow-strength, 0))),
-    0 0 22px color-mix(in srgb, var(--c-desktop-icon-bg, #c7b8ff) 8%, transparent);
+    0 10px 30px rgb(0 0 0 / calc(0.12 * var(--desktop-shadow-strength, 0))),
+    0 0 20px var(--c-accent-tint, transparent);
   isolation: isolate;
 }
 
@@ -904,15 +909,16 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  padding: 1.5px;
+  padding: 1px;
   pointer-events: none;
   z-index: 1;
+  /* 极轻珍珠 rim */
   background:
     linear-gradient(135deg,
-      rgba(255, 255, 255, 0.45),
-      rgba(255, 255, 255, 0.11) 40%,
-      rgba(255, 255, 255, 0.10) 62%,
-      rgba(255, 255, 255, 0.16));
+      rgba(255, 255, 255, 0.32),
+      rgba(255, 255, 255, 0.07) 40%,
+      rgba(255, 255, 255, 0.06) 62%,
+      rgba(255, 255, 255, 0.12));
   -webkit-mask:
     linear-gradient(#fff 0 0) content-box,
     linear-gradient(#fff 0 0);
@@ -921,8 +927,8 @@
 }
 
 .phone-shell[data-glass-pass="1"][data-icon-effect="glass"] .dock:not([data-skinned]) {
-  backdrop-filter: blur(24.01px) saturate(140%);
-  -webkit-backdrop-filter: blur(24.01px) saturate(140%);
+  backdrop-filter: blur(calc(var(--pg-blur-lg, 30px) + 0.01px)) saturate(var(--glass-saturate, 140%));
+  -webkit-backdrop-filter: blur(calc(var(--pg-blur-lg, 30px) + 0.01px)) saturate(var(--glass-saturate, 140%));
 }
 
 .dock[data-skinned] {
@@ -1079,10 +1085,13 @@
 
 @media (max-width: 500px) and (hover: none) and (pointer: coarse) {
 
-  /* 用户在设置里显式开启「显示系统状态栏」且运行时不在全屏时，控制器才会挂
-     data-pwa-display-mode 标记（见 pwa-manifest-injector）：此时所有 App 共用系统
-     安全区，不再重复预留 48px 虚拟状态栏。未开启开关的用户（含 iOS 装机用户，
-     iOS 永远报 standalone）不受影响，保持沉浸外观。 */
+  /* 用户在设置里显式开启「显示系统状态栏」、或运行在 Android 等非 iOS 安装 PWA
+     （standalone/fullscreen）时，首帧内联脚本 / pwa-manifest-injector 会挂
+     data-pwa-display-mode 标记：此时所有 App 共用系统安全区，不再重复预留 48px
+     虚拟状态栏（否则真实系统栏 + 模拟栏形成双状态栏）。
+     iOS 装机用户永远报 standalone，未显式选择时不挂标记，模拟状态栏继续承接
+     系统区，保持历史沉浸外观。 */
+  html[data-pwa-display-mode="fullscreen"] .phone-shell,
   html[data-pwa-display-mode="standalone"] .phone-shell,
   html[data-pwa-display-mode="minimal-ui"] .phone-shell,
   html[data-pwa-display-mode="browser"] .phone-shell {
@@ -1092,16 +1101,89 @@
     --home-grid-top-offset: calc(env(safe-area-inset-top, 0px) + 16px);
   }
 
+  html[data-pwa-display-mode="fullscreen"] .phone-shell > .phone-status-bar,
   html[data-pwa-display-mode="standalone"] .phone-shell > .phone-status-bar,
   html[data-pwa-display-mode="minimal-ui"] .phone-shell > .phone-status-bar,
   html[data-pwa-display-mode="browser"] .phone-shell > .phone-status-bar {
     display: none;
   }
 
+  html[data-pwa-display-mode="fullscreen"] .phone-shell-wrap,
   html[data-pwa-display-mode="standalone"] .phone-shell-wrap,
   html[data-pwa-display-mode="minimal-ui"] .phone-shell-wrap,
   html[data-pwa-display-mode="browser"] .phone-shell-wrap {
     margin-top: 0;
+  }
+
+  /* 锁屏同样避免双状态栏：隐藏模拟栏，内容只按 env 安全区避让。
+     锁屏渲染在 .phone-shell 之外，需单独覆盖。 */
+  html[data-pwa-display-mode="fullscreen"] .ios-lock-card .phone-status-bar,
+  html[data-pwa-display-mode="standalone"] .ios-lock-card .phone-status-bar,
+  html[data-pwa-display-mode="minimal-ui"] .ios-lock-card .phone-status-bar,
+  html[data-pwa-display-mode="browser"] .ios-lock-card .phone-status-bar {
+    display: none;
+  }
+
+  html[data-pwa-display-mode="fullscreen"] .ios-lock-content,
+  html[data-pwa-display-mode="standalone"] .ios-lock-content,
+  html[data-pwa-display-mode="minimal-ui"] .ios-lock-content,
+  html[data-pwa-display-mode="browser"] .ios-lock-content {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
+  }
+
+  /* 纯 CSS 兜底层：不依赖 cookie 偏好，直接按 display-mode 分别处理，
+     仅对非 iOS 设备生效（data-mobile-os 由首帧内联脚本写入）。
+     与上面的属性驱动层等价，任一生效即可，互不冲突。 */
+  @media (display-mode: standalone) {
+    html[data-mobile-os="android"] .phone-shell,
+    html[data-mobile-os="other"] .phone-shell {
+      --safe-area-top: env(safe-area-inset-top, 0px);
+      --phone-titlebar-safe-top: env(safe-area-inset-top, 0px);
+      --page-header-safe-top: env(safe-area-inset-top, 0px);
+      --home-grid-top-offset: calc(env(safe-area-inset-top, 0px) + 16px);
+    }
+    html[data-mobile-os="android"] .phone-shell > .phone-status-bar,
+    html[data-mobile-os="other"] .phone-shell > .phone-status-bar {
+      display: none;
+    }
+    html[data-mobile-os="android"] .phone-shell-wrap,
+    html[data-mobile-os="other"] .phone-shell-wrap {
+      margin-top: 0;
+    }
+    html[data-mobile-os="android"] .ios-lock-card .phone-status-bar,
+    html[data-mobile-os="other"] .ios-lock-card .phone-status-bar {
+      display: none;
+    }
+    html[data-mobile-os="android"] .ios-lock-content,
+    html[data-mobile-os="other"] .ios-lock-content {
+      padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
+    }
+  }
+
+  @media (display-mode: fullscreen) {
+    html[data-mobile-os="android"] .phone-shell,
+    html[data-mobile-os="other"] .phone-shell {
+      --safe-area-top: env(safe-area-inset-top, 0px);
+      --phone-titlebar-safe-top: env(safe-area-inset-top, 0px);
+      --page-header-safe-top: env(safe-area-inset-top, 0px);
+      --home-grid-top-offset: calc(env(safe-area-inset-top, 0px) + 16px);
+    }
+    html[data-mobile-os="android"] .phone-shell > .phone-status-bar,
+    html[data-mobile-os="other"] .phone-shell > .phone-status-bar {
+      display: none;
+    }
+    html[data-mobile-os="android"] .phone-shell-wrap,
+    html[data-mobile-os="other"] .phone-shell-wrap {
+      margin-top: 0;
+    }
+    html[data-mobile-os="android"] .ios-lock-card .phone-status-bar,
+    html[data-mobile-os="other"] .ios-lock-card .phone-status-bar {
+      display: none;
+    }
+    html[data-mobile-os="android"] .ios-lock-content,
+    html[data-mobile-os="other"] .ios-lock-content {
+      padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
+    }
   }
 
   :root {
@@ -1114,6 +1196,7 @@
   body {
     overflow: hidden;
     width: 100%;
+    min-height: 100dvh;
     height: calc(var(--vh, 1dvh) * 100);
     /* 背景层：铺满全屏、不加 padding，壁纸/底色直接延伸到系统栏底下 */
     background: var(--c-page-body-bg);
@@ -1121,6 +1204,7 @@
 
   .app-root {
     width: 100vw;
+    min-height: 100dvh;
     height: calc(var(--vh, 1dvh) * 100);
     padding: 0;
     display: flex;
@@ -1247,16 +1331,16 @@
 .phone-shell[data-icon-effect="glass"] .folder-mini {
   background:
     linear-gradient(135deg,
-      rgba(255, 255, 255, 0.32),
-      color-mix(in srgb, var(--c-desktop-icon-bg, #c7b8ff) 8%, transparent) 45%,
-      rgba(255, 255, 255, 0.10)),
+      rgba(255, 255, 255, 0.26),
+      color-mix(in srgb, var(--c-desktop-icon-bg, #ffffff) 8%, transparent) 45%,
+      rgba(255, 255, 255, 0.08)),
     linear-gradient(0deg,
       color-mix(in srgb, var(--c-desktop-icon-box, #ffffff) 38%, transparent),
       color-mix(in srgb, var(--c-desktop-icon-box, #ffffff) 38%, transparent)),
     rgba(255, 255, 255, 0.16);
   box-shadow:
-    inset 0 0.5px 1px rgba(255, 255, 255, 0.5),
-    inset 0 -0.5px 0.5px rgba(255, 255, 255, 0.10);
+    inset 0 0.5px 1px rgba(255, 255, 255, 0.4),
+    inset 0 -0.5px 0.5px rgba(255, 255, 255, 0.08);
 }
 
 .phone-shell[data-icon-effect="flat"] .folder-mini {
@@ -1356,15 +1440,15 @@
 .phone-shell[data-icon-effect="glass"] .folder-panel {
   background:
     linear-gradient(135deg,
-      rgba(255, 255, 255, 0.17),
-      color-mix(in srgb, var(--c-desktop-icon-bg, #c7b8ff) 6%, transparent),
-      rgba(255, 255, 255, 0.07)),
+      rgba(255, 255, 255, 0.14),
+      color-mix(in srgb, var(--c-desktop-icon-bg, #ffffff) 6%, transparent),
+      rgba(255, 255, 255, 0.06)),
     color-mix(in srgb, var(--c-desktop-icon-box, #ffffff) 30%, transparent);
-  backdrop-filter: blur(26px) saturate(140%);
-  -webkit-backdrop-filter: blur(26px) saturate(140%);
+  backdrop-filter: blur(var(--pg-blur-lg, 30px)) saturate(var(--glass-saturate, 140%));
+  -webkit-backdrop-filter: blur(var(--pg-blur-lg, 30px)) saturate(var(--glass-saturate, 140%));
   box-shadow:
-    inset 0 1px 2px rgba(255, 255, 255, 0.28),
-    inset 0 -1px 1px rgba(255, 255, 255, 0.05),
+    inset 0 1px 1px rgba(255, 255, 255, 0.22),
+    inset 0 -1px 1px rgba(255, 255, 255, 0.04),
     0 18px 48px rgba(0, 0, 0, 0.22);
 }
 
@@ -1373,15 +1457,15 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  padding: 1.5px;
+  padding: 1px;
   pointer-events: none;
   z-index: 3;
   background:
     linear-gradient(135deg,
-      rgba(255, 255, 255, 0.48),
-      rgba(255, 255, 255, 0.14) 40%,
-      rgba(255, 255, 255, 0.12) 62%,
-      rgba(255, 255, 255, 0.18));
+      rgba(255, 255, 255, 0.34),
+      rgba(255, 255, 255, 0.08) 40%,
+      rgba(255, 255, 255, 0.06) 62%,
+      rgba(255, 255, 255, 0.12));
   -webkit-mask:
     linear-gradient(#fff 0 0) content-box,
     linear-gradient(#fff 0 0);
@@ -1429,8 +1513,8 @@
   touch-action: pan-x;
 }
 .folder-app:active .icon-glyph-box {
-  transform: scale(0.92);
-  transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transform: scale(0.98);
+  transition: transform 0.14s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 /* 面板里的图标盒尺寸固定，不吃桌面 --slot-size 收缩。
    另外补一层"座位"底色：桌面上玻璃盒靠 backdrop 模糊壁纸显形、扁平盒
@@ -1446,9 +1530,9 @@
 .phone-shell[data-icon-effect="glass"] .folder-app .icon-glyph-box {
   background:
     linear-gradient(135deg,
-      rgba(255, 255, 255, 0.17),
-      color-mix(in srgb, var(--c-desktop-icon-bg, #c7b8ff) 6%, transparent),
-      rgba(255, 255, 255, 0.07)),
+      rgba(255, 255, 255, 0.14),
+      color-mix(in srgb, var(--c-desktop-icon-bg, #ffffff) 6%, transparent),
+      rgba(255, 255, 255, 0.06)),
     linear-gradient(0deg,
       color-mix(in srgb, var(--c-desktop-icon-box, #ffffff) 38%, transparent),
       color-mix(in srgb, var(--c-desktop-icon-box, #ffffff) 38%, transparent)),
@@ -1477,4 +1561,25 @@
 }
 .folder-dots .dot.active {
   background: color-mix(in srgb, var(--c-home-label, #ffffff) 85%, transparent);
+}
+
+/* ── Reduced Motion：关闭编辑态抖动 / 装饰性过渡，但拖拽、分页、开关仍即时可用 ── */
+@media (prefers-reduced-motion: reduce) {
+  .icon-item,
+  .dock-item,
+  .dock.edit-mode .dock-item,
+  .edit-mode .icon-item {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+  .phone-wallpaper,
+  .phone-wallpaper-tint,
+  .dock-skin-layer,
+  .icon-skin-layer {
+    transition-duration: 0.01ms !important;
+  }
+  .folder-overlay,
+  .folder-panel {
+    animation: none !important;
+  }
 }

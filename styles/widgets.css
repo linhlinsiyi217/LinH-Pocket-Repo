@@ -75,23 +75,25 @@
   border-radius: 20px;
 }
 
-/* Base Effects overrides for widgets (应用到内部卡片实体) */
+/* Pearl Glass Widget（data-widget-effect="glass"）：
+   材质语言与图标盒 / Dock 同源——同档模糊、同款珍珠 rim、同一种子色 tint；
+   业务内容布局不做统一。无主色时无彩色 glow。 */
 .phone-shell[data-widget-effect="glass"] .widget-glass:not(.widget-freestyle) > div:not(.wg-ios-menu):not(.wg-large-time):not(.wg-mood-pill) {
   background:
     linear-gradient(135deg,
-      rgba(255, 255, 255, 0.26),
-      color-mix(in srgb, var(--c-home-pink, #f8bbd0) 5%, transparent),
-      rgba(255, 255, 255, 0.1)),
+      rgba(255, 255, 255, 0.2),
+      var(--c-accent-tint, transparent),
+      rgba(255, 255, 255, 0.08)),
     color-mix(in srgb, var(--c-home-card, rgba(255, 255, 255, 0.85)) 44%, transparent);
   position: relative;
   overflow: hidden;
-  backdrop-filter: blur(22px) saturate(140%);
-  -webkit-backdrop-filter: blur(22px) saturate(140%);
+  backdrop-filter: blur(var(--pg-blur-md, 22px)) saturate(var(--glass-saturate, 140%));
+  -webkit-backdrop-filter: blur(var(--pg-blur-md, 22px)) saturate(var(--glass-saturate, 140%));
   box-shadow:
-    inset 0 1px 2px rgba(255, 255, 255, 0.38),
-    inset 0 -1px 1px rgba(255, 255, 255, 0.05),
-    0 8px 32px rgb(0 0 0 / calc(0.14 * var(--desktop-shadow-strength, 0))),
-    0 0 22px color-mix(in srgb, var(--c-home-pink, #f8bbd0) 8%, transparent);
+    inset 0 1px 1px rgba(255, 255, 255, 0.24),
+    inset 0 -1px 1px rgba(255, 255, 255, 0.04),
+    0 8px 32px rgb(0 0 0 / calc(0.12 * var(--desktop-shadow-strength, 0))),
+    0 0 16px var(--c-accent-tint, transparent);
   isolation: isolate;
   transform: translateZ(0);
   will-change: transform;
@@ -120,15 +122,16 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  padding: 2px;
+  padding: 1px;
   pointer-events: none;
   z-index: 2;
+  /* 极轻珍珠 rim，与图标盒一致 */
   background:
     linear-gradient(135deg,
-      rgba(255, 255, 255, 0.65),
-      rgba(255, 255, 255, 0.12) 40%,
-      rgba(255, 255, 255, 0.08) 62%,
-      rgba(255, 255, 255, 0.15));
+      rgba(255, 255, 255, 0.34),
+      rgba(255, 255, 255, 0.08) 40%,
+      rgba(255, 255, 255, 0.06) 62%,
+      rgba(255, 255, 255, 0.12));
   -webkit-mask:
     linear-gradient(#fff 0 0) content-box,
     linear-gradient(#fff 0 0);
@@ -137,8 +140,8 @@
 }
 
 .phone-shell[data-glass-pass="1"][data-widget-effect="glass"] .widget-glass:not(.widget-freestyle) > div:not(.wg-ios-menu):not(.wg-large-time):not(.wg-mood-pill) {
-  backdrop-filter: blur(22.01px) saturate(140%);
-  -webkit-backdrop-filter: blur(22.01px) saturate(140%);
+  backdrop-filter: blur(calc(var(--pg-blur-md, 22px) + 0.01px)) saturate(var(--glass-saturate, 140%));
+  -webkit-backdrop-filter: blur(calc(var(--pg-blur-md, 22px) + 0.01px)) saturate(var(--glass-saturate, 140%));
 }
 
 /* Interaction-time downgrade: while the desktop is busy adding/dragging widgets,
@@ -1784,17 +1787,17 @@
   height: fit-content;
   background:
     linear-gradient(135deg,
-      rgba(255, 255, 255, 0.26),
-      color-mix(in srgb, var(--c-home-pink, #f8bbd0) 5%, transparent),
-      rgba(255, 255, 255, 0.1)),
+      rgba(255, 255, 255, 0.2),
+      var(--c-accent-tint, transparent),
+      rgba(255, 255, 255, 0.08)),
     color-mix(in srgb, var(--c-home-card, rgba(255, 255, 255, 0.85)) 44%, transparent);
-  backdrop-filter: blur(22px) saturate(140%);
-  -webkit-backdrop-filter: blur(22px) saturate(140%);
+  backdrop-filter: blur(var(--pg-blur-md, 22px)) saturate(var(--glass-saturate, 140%));
+  -webkit-backdrop-filter: blur(var(--pg-blur-md, 22px)) saturate(var(--glass-saturate, 140%));
   box-shadow:
-    inset 0 1px 2px rgba(255, 255, 255, 0.38),
-    inset 0 -1px 1px rgba(255, 255, 255, 0.05),
-    0 8px 32px rgb(0 0 0 / calc(0.14 * var(--desktop-shadow-strength, 0))),
-    0 0 22px color-mix(in srgb, var(--c-home-pink, #f8bbd0) 8%, transparent);
+    inset 0 1px 1px rgba(255, 255, 255, 0.24),
+    inset 0 -1px 1px rgba(255, 255, 255, 0.04),
+    0 8px 32px rgb(0 0 0 / calc(0.12 * var(--desktop-shadow-strength, 0))),
+    0 0 16px var(--c-accent-tint, transparent);
   isolation: isolate;
   transform: translateZ(0);
   will-change: transform;
@@ -1824,15 +1827,15 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  padding: 2px;
+  padding: 1px;
   pointer-events: none;
   z-index: 3;
   background:
     linear-gradient(135deg,
-      rgba(255, 255, 255, 0.65),
-      rgba(255, 255, 255, 0.12) 40%,
-      rgba(255, 255, 255, 0.08) 62%,
-      rgba(255, 255, 255, 0.15));
+      rgba(255, 255, 255, 0.34),
+      rgba(255, 255, 255, 0.08) 40%,
+      rgba(255, 255, 255, 0.06) 62%,
+      rgba(255, 255, 255, 0.12));
   -webkit-mask:
     linear-gradient(#fff 0 0) content-box,
     linear-gradient(#fff 0 0);
@@ -1855,8 +1858,8 @@
 }
 
 .phone-shell[data-glass-pass="1"][data-widget-effect="glass"] .wg-ios-menu {
-  backdrop-filter: blur(22.01px) saturate(140%);
-  -webkit-backdrop-filter: blur(22.01px) saturate(140%);
+  backdrop-filter: blur(calc(var(--pg-blur-md, 22px) + 0.01px)) saturate(var(--glass-saturate, 140%));
+  -webkit-backdrop-filter: blur(calc(var(--pg-blur-md, 22px) + 0.01px)) saturate(var(--glass-saturate, 140%));
 }
 
 
@@ -2310,26 +2313,26 @@
 .phone-shell[data-widget-effect="glass"] .wg-mood-bubble {
   background:
     linear-gradient(135deg,
-      rgba(255, 255, 255, 0.26),
-      color-mix(in srgb, var(--c-home-pink, #f8bbd0) 5%, transparent),
-      rgba(255, 255, 255, 0.1)),
+      rgba(255, 255, 255, 0.2),
+      var(--c-accent-tint, transparent),
+      rgba(255, 255, 255, 0.08)),
     color-mix(in srgb, var(--c-home-card, rgba(255, 255, 255, 0.85)) 44%, transparent);
-  backdrop-filter: blur(22px) saturate(140%);
-  -webkit-backdrop-filter: blur(22px) saturate(140%);
+  backdrop-filter: blur(var(--pg-blur-md, 22px)) saturate(var(--glass-saturate, 140%));
+  -webkit-backdrop-filter: blur(var(--pg-blur-md, 22px)) saturate(var(--glass-saturate, 140%));
   box-shadow:
-    inset 0 1px 2px rgba(255, 255, 255, 0.38),
-    inset 0 -1px 1px rgba(255, 255, 255, 0.05),
-    inset 0 0 0 1.5px rgba(255, 255, 255, 0.12),
-    0 8px 32px rgb(0 0 0 / calc(0.14 * var(--desktop-shadow-strength, 0))),
-    0 0 18px color-mix(in srgb, var(--c-home-pink, #f8bbd0) 8%, transparent);
+    inset 0 1px 1px rgba(255, 255, 255, 0.24),
+    inset 0 -1px 1px rgba(255, 255, 255, 0.04),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 8px 32px rgb(0 0 0 / calc(0.12 * var(--desktop-shadow-strength, 0))),
+    0 0 14px var(--c-accent-tint, transparent);
   isolation: isolate;
   transform: translateZ(0);
   will-change: transform;
 }
 
 .phone-shell[data-glass-pass="1"][data-widget-effect="glass"] .wg-mood-bubble {
-  backdrop-filter: blur(22.01px) saturate(140%);
-  -webkit-backdrop-filter: blur(22.01px) saturate(140%);
+  backdrop-filter: blur(calc(var(--pg-blur-md, 22px) + 0.01px)) saturate(var(--glass-saturate, 140%));
+  -webkit-backdrop-filter: blur(calc(var(--pg-blur-md, 22px) + 0.01px)) saturate(var(--glass-saturate, 140%));
 }
 
 /* 用作边框描边的底下大一圈的三角 */

@@ -8,7 +8,7 @@
  *   彩色只允许出现在更新日志面板与更新弹窗。
  */
 
-export const APP_VERSION = "0.6.2";
+export const APP_VERSION = "0.7.0";
 
 export type ChangelogKind = "feature" | "fix" | "adjust" | "patch";
 
@@ -32,6 +32,16 @@ export const CHANGELOG_KIND_META: Record<ChangelogKind, { label: string; color: 
 
 /** 完整更新日志，新的在前。发版时在数组头部插入新版本，同时升 APP_VERSION。 */
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: "0.7.0",
+    date: "2026-09-18",
+    entries: [
+      { kind: "fix", text: "修复 Android 安装 PWA 的顶部黑条与双状态栏：系统将自动识别 standalone/fullscreen 安装模式，隐藏模拟状态栏并按刘海安全区（env safe-area）避让，页面背景延伸至系统区，首帧不再闪现双状态栏" },
+      { kind: "adjust", text: "统一全机 Pearl Glass 珍珠玻璃：桌面图标、Dock、文件夹与小组件改用同一套模糊/圆角/珍珠描边令牌，去除默认紫色与粉色染色和发光，未选主色时全部为中性玻璃" },
+      { kind: "adjust", text: "统一主色派生与页面背景层级：图标玻璃染色纳入种子色系统，锁屏底色改用语义色板，锁屏、桌面、设置与按钮严格同属一个色彩家族" },
+      { kind: "adjust", text: "统一交互动效：图标与按钮按压改为克制的缩放反馈与标准曲线，桌面松手归位使用 settle 曲线，并完善减弱动态效果（reduced motion）下的表现" },
+    ],
+  },
   {
     version: "0.6.2",
     date: "2026-09-19",
