@@ -71,7 +71,10 @@ export const PAGE_2_DEFAULT: IconId[] = [
 // 第三页默认图标：右半边 2×2 排布（左半边留给日历组件），位置见 createDefaultDesktopIconLayout
 export const PAGE_3_DEFAULT: IconId[] = ["worldbuilder", "qa", "resource_hub", "realitybridge", "mixology"];
 
-export const DOCK_DEFAULT: IconId[] = ["settings", "theme", "resources", "characters"];
+// 0.8.0 T4：主题/资源库/角色已收编进设置分组，新用户 Dock 只保留设置；
+// dock 宽度按 --dock-count 自适应（见 phone-shell.css .dock），单图标同样正常。
+// 老用户已持久化的 Dock（含三旧图标）不迁移，点击后在设置内以全屏兼容槽打开。
+export const DOCK_DEFAULT: IconId[] = ["settings"];
 
 export const ICONS: Record<IconId, IconMeta> = {
   chat: { id: "chat", label: "\u804a\u5929", tone: "var(--c-icon-green)", placeholder: false },

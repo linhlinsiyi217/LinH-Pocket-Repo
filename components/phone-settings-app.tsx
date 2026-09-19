@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, createContext, type CSSProperties, type ReactNode } from "react";
-import { Activity, Check, ChevronRight, Clock, Database, FileText, Fingerprint, Globe, HardDrive, Image, Info, KeyRound, Laptop, Layers, Link2, Loader2, LockKeyhole, LogOut, MessageSquare, Mic, SlidersHorizontal, Sparkles, UserCircle, Wrench, X, CloudUpload } from "lucide-react";
+import { Accessibility, ArrowLeftRight, Bell, Check, ChevronRight, CloudUpload, Eye, HardDrive, KeyRound, Loader2, LockKeyhole, LogOut, Palette, Search, SlidersHorizontal, Sparkles, SunMedium, UserCircle, Users, Volume2, X } from "lucide-react";
 import { ConfirmDialog } from "./ui/modal";
 import { OPEN_CHANGELOG_EVENT, useUpdateUnread } from "./update-notice";
 import { APP_VERSION } from "@/lib/version-info";
@@ -26,12 +26,13 @@ import { AgentComputerSettings } from "./settings/agent-computer-settings";
 import { LockPasscodeSettings } from "./settings/lock-passcode-settings";
 import { fetchIsAdmin } from "@/lib/moderation-client";
 import { PageShell } from "./ui/page-shell";
-import { CardGrid, FeaturedCard, type CardItem, type FeaturedCardItem } from "./ui/card-grid";
 import { GlassIcon } from "./ui/glass-icon";
 import { Toggle } from "./ui/form";
 import { loadChatAppSettings, saveChatAppSettings } from "@/lib/chat-storage";
 import { loadKeepAlive, saveKeepAlive } from "@/lib/weixin-storage";
 import { BINDING_ACCENTS, CONTENT_APP_ACCENTS } from "@/lib/ui-accent-colors";
+import { SETTINGS_DEEP_LINK_EVENT, type SettingsDeepLink } from "./settings/settings-deep-link";
+import { searchSettings } from "./settings/settings-search";
 
 export const SettingsContext = createContext<{
     setSubpageTitle: (title: string | null) => void;
@@ -42,10 +43,21 @@ export const SettingsContext = createContext<{
 type SettingsPageProps = {
     onClose: () => void;
     onNotice: (msg: string) => void;
+    /** 外部入口（桌面旧图标 / mascot / 控制中心）指定的初始子页，挂载时消费一次。 */
+    initialDeepLink?: SettingsDeepLink | null;
+    /** 设置挂载前由外部暂存的深链被消费后回调（用于清状态）。 */
+    onDeepLinkConsumed?: () => void;
+    /**
+     * 旧独立 App 全屏兼容槽（T4）：外观与主题(T5)、角色与世界(T6)、资源库(T7)
+     * 完成整合前，旧图标进入设置时渲染原组件，功能不丢；返回键回设置首页。
+     * 对应模块整合完成后由共享组件替换并移除槽位。
+     */
+    legacySlots?: Record<string, (back: () => void, tab?: string) => ReactNode>;
 };
 
 type SubPage =
     | "main"
+    // ── 既有子页（全部保留）──
     | "api"
     | "voice"
     | "imageGeneration"
@@ -61,40 +73,100 @@ type SubPage =
     | "agentComputer"
     | "moderation"
     | "lockPasscode"
-    | "about";
+    | "about"
+    // ── 0.8.0 新分组骨架 ──
+    | "apiHub"           // 角色与创作 → API 与模型（二级聚合页）
+    | "appearance"       // 外观与主题（T4 legacy slot，T5 替换）
+    | "worldCharacters"  // 角色与世界（T4 legacy slot，T6 替换）
+    | "worldResources"   // 资源库（T4 legacy slot，T7 替换；tab=memory/vn_assets）
+    | "vision"           // 视觉识别（T10 落地）
+    | "lock"             // 锁屏与状态栏（T12 落地，T4 内含密码入口）
+    | "notifications"    // 通知与后台（T12 落地，T4 含后台保活）
+    | "display"          // 显示与亮度（规划中占位）
+    | "sound"            // 声音与触感（规划中占位）
+    | "mascot"           // AI 与全局助手（T8/T9 落地）
+    | "accessibility"    // 辅助功能（真实开关页）
+    | "general";         // 通用（更新日志等）
 
-const SETTINGS_MENU = [
-    { id: "api", icon: HardDrive, label: "API 设置", desc: "大模型接口", iconColor: BINDING_ACCENTS.api , glass: "api" },
-    { id: "voice", icon: Mic, label: "语音 API", desc: "语音合成", iconColor: BINDING_ACCENTS.voice , glass: "voice" },
-    { id: "imageGeneration", icon: Image, label: "图像生成 API", desc: "模型、参考图与提示词", iconColor: CONTENT_APP_ACCENTS.moments , glass: "image-generation" },
-    { id: "presets", icon: Fingerprint, label: "预设", desc: "角色预设", iconColor: BINDING_ACCENTS.preset , glass: "presets" },
-    { id: "worldbook", icon: Globe, label: "世界书", desc: "世界观设定", iconColor: BINDING_ACCENTS.worldBook , glass: "worldbook" },
-    { id: "regex", icon: Database, label: "正则规则", desc: "文本替换", iconColor: BINDING_ACCENTS.regex , glass: "regex" },
-    { id: "data", icon: Layers, label: "数据管理", desc: "导入导出", iconColor: BINDING_ACCENTS.api , glass: "data" },
-    { id: "binding", icon: Link2, label: "配置绑定", desc: "管理全局默认、角色与应用的配置绑定关系", iconColor: BINDING_ACCENTS.identity , glass: "binding" },
-    { id: "cloud", icon: CloudUpload, label: "云服务部署", desc: "备份 / 微信 / 推送一站配置", iconColor: BINDING_ACCENTS.api , glass: "" },
-    { id: "weixin", icon: MessageSquare, label: "微信接入", desc: "iLink Bot", iconColor: CONTENT_APP_ACCENTS.chat , glass: "weixin" },
-    { id: "toolbox", icon: Wrench, label: "聊天工具箱", desc: "外部工具调用", iconColor: BINDING_ACCENTS.voice , glass: "toolbox" },
-    { id: "agentComputer", icon: Laptop, label: "角色电脑", desc: "云端小电脑（自部署）", iconColor: BINDING_ACCENTS.memory , glass: "agent-computer" },
-    { id: "identity", icon: UserCircle, label: "用户身份", desc: "个人信息", iconColor: BINDING_ACCENTS.identity , glass: "identity" },
-    { id: "about", icon: Info, label: "关于与声明", desc: "版本与协议", iconColor: BINDING_ACCENTS.memory , glass: "about" },
-] as const;
+/** 旧独立 App 全屏兼容槽页 id（不包设置 PageShell，由旧组件自带壳）。 */
+const LEGACY_SLOT_PAGES = new Set<string>(["appearance", "worldCharacters", "worldResources"]);
 
-const realtimeIconStyle = {
-    "--icon-color": CONTENT_APP_ACCENTS.calendar,
-} as CSSProperties;
+type GroupItem = {
+    page: SubPage;
+    tab?: string;
+    label: string;
+    desc: string;
+    iconColor: string;
+    glass?: string;
+    lucide?: typeof Palette;
+    adminOnly?: boolean;
+};
 
-const keepAliveIconStyle = {
-    "--icon-color": CONTENT_APP_ACCENTS.chat,
-} as CSSProperties;
+type SettingsGroup = {
+    id: string;
+    title: string;
+    items: GroupItem[];
+};
 
-const promptViewerIconStyle = {
-    "--icon-color": BINDING_ACCENTS.preset,
-} as CSSProperties;
+// ── 5 大分组（FR-5）────────────────────────────────────────────
+const SETTINGS_GROUPS: SettingsGroup[] = [
+    {
+        id: "appearance",
+        title: "外观",
+        items: [
+            { page: "appearance", label: "外观与主题", desc: "深浅色 · 壁纸 · 图标 · 字体", iconColor: BINDING_ACCENTS.preset, glass: "palette" },
+            { page: "lock", label: "锁屏与状态栏", desc: "锁屏壁纸、组件与密码", iconColor: BINDING_ACCENTS.api, glass: "status-bar" },
+            { page: "display", label: "显示与亮度", desc: "亮度与显示偏好", iconColor: "#F59E0B", lucide: SunMedium },
+            { page: "sound", label: "声音与触感", desc: "提示音与震动", iconColor: BINDING_ACCENTS.voice, lucide: Volume2 },
+        ],
+    },
+    {
+        id: "create",
+        title: "角色与创作",
+        items: [
+            { page: "worldCharacters", label: "角色与世界", desc: "角色档案与世界卷宗", iconColor: BINDING_ACCENTS.memory, lucide: Users },
+            { page: "worldResources", label: "资源库", desc: "记忆库 · 漫卷场景与立绘", iconColor: CONTENT_APP_ACCENTS.vn, glass: "vn-assets" },
+            { page: "worldResources", tab: "memory", label: "记忆与上下文", desc: "角色记忆档案", iconColor: BINDING_ACCENTS.memory, glass: "memory" },
+            { page: "mascot", label: "AI 与全局助手", desc: "小淮宝与工坊助手能力", iconColor: BINDING_ACCENTS.preset, lucide: Sparkles },
+            { page: "apiHub", label: "API 与模型", desc: "对话 · 语音 · 图像 · 视觉", iconColor: BINDING_ACCENTS.api, glass: "api" },
+            { page: "agentComputer", label: "角色电脑", desc: "云端小电脑（自部署）", iconColor: BINDING_ACCENTS.memory, glass: "agent-computer" },
+        ],
+    },
+    {
+        id: "rules",
+        title: "AI 与规则",
+        items: [
+            { page: "presets", label: "预设", desc: "角色预设", iconColor: BINDING_ACCENTS.preset, glass: "presets" },
+            { page: "worldbook", label: "世界书", desc: "触发式设定与上下文", iconColor: BINDING_ACCENTS.worldBook, glass: "worldbook" },
+            { page: "regex", label: "正则规则", desc: "文本替换", iconColor: BINDING_ACCENTS.regex, glass: "regex" },
+            { page: "binding", label: "配置绑定", desc: "默认、角色与应用绑定", iconColor: BINDING_ACCENTS.identity, glass: "binding" },
+        ],
+    },
+    {
+        id: "data",
+        title: "数据",
+        items: [
+            { page: "data", label: "数据与存储", desc: "本地数据管理", iconColor: BINDING_ACCENTS.api, glass: "data" },
+            { page: "data", tab: "export", label: "导入与导出", desc: "备份、迁移与恢复", iconColor: BINDING_ACCENTS.worldBook, lucide: ArrowLeftRight },
+            { page: "cloud", label: "云服务与备份", desc: "备份 / 微信 / 推送", iconColor: BINDING_ACCENTS.api, lucide: CloudUpload },
+        ],
+    },
+    {
+        id: "system",
+        title: "系统",
+        items: [
+            { page: "weixin", label: "微信接入", desc: "iLink Bot", iconColor: CONTENT_APP_ACCENTS.chat, glass: "weixin" },
+            { page: "notifications", label: "通知与后台", desc: "通知、保活与推送", iconColor: CONTENT_APP_ACCENTS.chat, lucide: Bell },
+            { page: "toolbox", label: "工具箱", desc: "聊天外部工具调用", iconColor: BINDING_ACCENTS.voice, glass: "toolbox" },
+            { page: "accessibility", label: "辅助功能", desc: "时间感知 · 悬浮球 · 快捷操作", iconColor: BINDING_ACCENTS.identity, lucide: Accessibility },
+            { page: "general", label: "通用", desc: "更新日志与版本", iconColor: BINDING_ACCENTS.memory, lucide: SlidersHorizontal },
+            { page: "about", label: "关于与声明", desc: "版本与协议", iconColor: BINDING_ACCENTS.memory, glass: "about" },
+            { page: "moderation", label: "管理中心", desc: "举报 · 审核 · 封禁", iconColor: BINDING_ACCENTS.regex, glass: "moderation", adminOnly: true },
+        ],
+    },
+];
 
-const quickActionIconStyle = {
-    "--icon-color": BINDING_ACCENTS.worldBook,
-} as CSSProperties;
+const ALL_GROUP_ITEMS: GroupItem[] = SETTINGS_GROUPS.flatMap(g => g.items);
 
 const accountIconStyle = {
     "--icon-color": BINDING_ACCENTS.identity,
@@ -108,13 +180,96 @@ const logoutIconStyle = {
     "--icon-color": "var(--c-danger)",
 } as CSSProperties;
 
-export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
-    const [currentPage, setCurrentPage] = useState<SubPage>("main");
+function formatBytes(bytes: number): string {
+    if (!Number.isFinite(bytes) || bytes <= 0) return "—";
+    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+/** 设备卡片：只展示可真实读取的信息，不仿 Apple ID 造假。 */
+function DeviceInfoCard() {
+    const [info, setInfo] = useState<{ platform: string; viewport: string; mode: string; storage: string }>({
+        platform: "—",
+        viewport: "—",
+        mode: "—",
+        storage: "—",
+    });
+
+    useEffect(() => {
+        const nav = navigator as Navigator & { userAgentData?: { platform?: string } };
+        const platform = nav.userAgentData?.platform || nav.platform || "未知设备";
+        const viewport = `${window.innerWidth} × ${window.innerHeight}`;
+        const standalone = window.matchMedia?.("(display-mode: standalone)").matches;
+        const mode = standalone ? "PWA 独立应用" : "浏览器中运行";
+        setInfo(prev => ({ ...prev, platform, viewport, mode }));
+
+        let cancelled = false;
+        void navigator.storage?.estimate?.().then(est => {
+            if (cancelled || !est) return;
+            const used = est.usage ?? 0;
+            const quota = est.quota ?? 0;
+            setInfo(prev => ({
+                ...prev,
+                storage: quota > 0 ? `${formatBytes(used)} / ${formatBytes(quota)}` : formatBytes(used),
+            }));
+        }).catch(() => { /* 隐私模式等场景可能拒绝，保持 "—" */ });
+        return () => { cancelled = true; };
+    }, []);
+
+    const rows: Array<[string, string]> = [
+        ["设备", info.platform],
+        ["屏幕", info.viewport],
+        ["运行方式", info.mode],
+        ["本机存储", info.storage],
+        ["系统版本", `LinH Pocket v${APP_VERSION}`],
+    ];
+
+    return (
+        <div className="settings-device-card app-card">
+            <div className="settings-device-head">
+                <span className="settings-device-avatar"><HardDrive size={20} strokeWidth={1.8} /></span>
+                <span className="settings-device-copy">
+                    <span className="settings-device-name">本机</span>
+                    <span className="settings-device-sub">设备与运行环境</span>
+                </span>
+            </div>
+            <dl className="settings-device-rows">
+                {rows.map(([k, v]) => (
+                    <div className="settings-device-row" key={k}>
+                        <dt>{k}</dt>
+                        <dd title={v}>{v}</dd>
+                    </div>
+                ))}
+            </dl>
+        </div>
+    );
+}
+
+/** 诚实占位页：后续模块才落地的能力，明确标注，不放假开关。 */
+function ComingSoonPage({ title, lines }: { title: string; lines: string[] }) {
+    return (
+        <div className="settings-soon">
+            <div className="settings-soon-icon"><Sparkles size={22} strokeWidth={1.6} /></div>
+            <div className="settings-soon-title">{title}</div>
+            {lines.map(line => <p className="settings-soon-desc" key={line}>{line}</p>)}
+        </div>
+    );
+}
+
+export function PhoneSettingsApp({ onClose, onNotice, initialDeepLink = null, onDeepLinkConsumed, legacySlots }: SettingsPageProps) {
+    // 首帧即落在深链页，避免「先闪首页再跳子页」（旧三 App 全屏槽尤其明显）
+    const [currentPage, setCurrentPage] = useState<SubPage>(
+        initialDeepLink?.page ? initialDeepLink.page as SubPage : "main",
+    );
+    // 二级 tab（目前仅 worldResources: memory / vn_assets）
+    const [subTab, setSubTab] = useState<string | undefined>(initialDeepLink?.tab ?? undefined);
     // 更新日志未读白色小圆点（PROJECT_RULES.md 第四章）
     const updateUnread = useUpdateUnread();
     const [subpageTitle, setSubpageTitle] = useState<string | null>(null);
     const [subpageRightActions, setSubpageRightActions] = useState<Record<string, ReactNode>>({});
     const [overrideBack, setOverrideBack] = useState<(() => void) | null>(null);
+    const [searchQuery, setSearchQuery] = useState("");
     const [timeAware, setTimeAware] = useState(true);
     const [promptViewerEnabled, setPromptViewerEnabled] = useState(false);
     const [quickActionEnabled, setQuickActionEnabled] = useState(false);
@@ -144,6 +299,12 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
         void fetchIsAdmin().then(result => { if (!cancelled) setIsAdmin(result); });
         return () => { cancelled = true; };
     }, [selfHostedMode, account]);
+
+    const navigate = useCallback((page: string, tab?: string) => {
+        setCurrentPage(page as SubPage);
+        setSubTab(tab);
+        setSearchQuery("");
+    }, []);
 
     const closePwdModal = () => {
         if (pwdBusy) return;
@@ -182,6 +343,8 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
         }
     };
 
+    const groupItemById = useCallback((id: string): GroupItem | undefined => ALL_GROUP_ITEMS.find(i => i.page === id), []);
+
     const defaultTitle = currentPage === "main"
         ? "设置"
         : currentPage === "api" || currentPage === "voice" || currentPage === "imageGeneration" || currentPage === "presets" || currentPage === "worldbook" || currentPage === "regex" || currentPage === "identity"
@@ -190,7 +353,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                 ? "管理中心"
                 : currentPage === "lockPasscode"
                     ? "锁屏密码"
-                    : SETTINGS_MENU.find(m => m.id === currentPage)?.label || "设置";
+                    : groupItemById(currentPage)?.label || "设置";
     const title = subpageTitle || defaultTitle;
 
     const setSubpageRightAction = useCallback((page: string, action: ReactNode | null) => {
@@ -209,25 +372,13 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
             overrideBack();
         } else if (currentPage !== "main") {
             setCurrentPage("main");
+            setSubTab(undefined);
             setSubpageTitle(null);
             setOverrideBack(null);
         } else {
             onClose();
         }
     };
-
-    const makeCardItem = (item: typeof SETTINGS_MENU[number]): CardItem => ({
-        id: item.id,
-        icon: item.icon,
-        label: item.label,
-        desc: item.desc,
-        iconColor: item.iconColor,
-        glassIcon: item.glass,
-        onClick: () => {
-            // 施工中：角色电脑先弹提示，可选择仍要看看
-            setCurrentPage(item.id as SubPage);
-        },
-    });
 
     const handleTimeAwareChange = useCallback((next: boolean) => {
         setTimeAware(next);
@@ -261,51 +412,132 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
         onNotice(next ? "已开启后台保活" : "已关闭后台保活");
     }, [onNotice]);
 
-    const imageGenerationItem = SETTINGS_MENU.find(i => i.id === "imageGeneration")!;
-    const imageGenerationFeaturedItem: FeaturedCardItem = {
-        id: imageGenerationItem.id,
-        icon: imageGenerationItem.icon,
-        label: imageGenerationItem.label,
-        desc: imageGenerationItem.desc,
-        iconColor: imageGenerationItem.iconColor,
-        glassIcon: imageGenerationItem.glass,
-        onClick: () => setCurrentPage("imageGeneration"),
-    };
+    // ── 开关行（辅助功能 / 通知与后台共用）──
+    const toggleRow = (icon: ReactNode, label: string, desc: string, checked: boolean, onChange: (next: boolean) => void) => (
+        <div className="app-card card-featured settings-toggle-card" key={label}>
+            <span className="card-icon card-icon-glass">{icon}</span>
+            <div className="card-featured-body">
+                <div className="card-featured-label">{label}</div>
+                <div className="card-featured-desc">{desc}</div>
+            </div>
+            <Toggle checked={checked} onChange={onChange} className="settings-toggle-control" />
+        </div>
+    );
 
-    const cloudItem = SETTINGS_MENU.find(i => i.id === "cloud")!;
-    const cloudFeaturedItem: FeaturedCardItem = {
-        id: cloudItem.id,
-        icon: cloudItem.icon,
-        label: cloudItem.label,
-        desc: cloudItem.desc,
-        iconColor: cloudItem.iconColor,
-        onClick: () => setCurrentPage("cloud"),
-    };
+    const renderApiHub = () => (
+        <div className="page-menu" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <button type="button" className="app-card card-featured" onClick={() => navigate("api")}>
+                <span className="card-icon card-icon-glass"><GlassIcon name="api" /></span>
+                <div className="card-featured-body">
+                    <div className="card-featured-label">API 设置</div>
+                    <div className="card-featured-desc">大模型对话接口</div>
+                </div>
+                <ChevronRight size={18} className="settings-account-chevron" />
+            </button>
+            <button type="button" className="app-card card-featured" onClick={() => navigate("voice")}>
+                <span className="card-icon card-icon-glass"><GlassIcon name="voice" /></span>
+                <div className="card-featured-body">
+                    <div className="card-featured-label">语音 API</div>
+                    <div className="card-featured-desc">语音合成</div>
+                </div>
+                <ChevronRight size={18} className="settings-account-chevron" />
+            </button>
+            <button type="button" className="app-card card-featured" onClick={() => navigate("imageGeneration")}>
+                <span className="card-icon card-icon-glass"><GlassIcon name="image-generation" /></span>
+                <div className="card-featured-body">
+                    <div className="card-featured-label">图像生成 API</div>
+                    <div className="card-featured-desc">模型、参考图与提示词</div>
+                </div>
+                <ChevronRight size={18} className="settings-account-chevron" />
+            </button>
+            <button type="button" className="app-card card-featured" onClick={() => navigate("vision")}>
+                <span className="card-icon" style={{ "--icon-color": BINDING_ACCENTS.memory } as CSSProperties}><Eye size={22} strokeWidth={1.75} /></span>
+                <div className="card-featured-body">
+                    <div className="card-featured-label">视觉识别</div>
+                    <div className="card-featured-desc">图片与文件的 AI 视觉识别</div>
+                </div>
+                <ChevronRight size={18} className="settings-account-chevron" />
+            </button>
+        </div>
+    );
 
-    const agentComputerItem = SETTINGS_MENU.find(i => i.id === "agentComputer")!;
-    const agentComputerFeaturedItem: FeaturedCardItem = {
-        id: agentComputerItem.id,
-        icon: agentComputerItem.icon,
-        label: agentComputerItem.label,
-        desc: agentComputerItem.desc,
-        iconColor: agentComputerItem.iconColor,
-        glassIcon: agentComputerItem.glass,
-        onClick: () => setCurrentPage("agentComputer"),
-    };
+    const renderAccessibility = () => (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {toggleRow(<GlassIcon name="time-aware" />, "真实时间感知", "控制全局历史事件流中是否注入时间戳", timeAware, handleTimeAwareChange)}
+            {toggleRow(<GlassIcon name="prompt-viewer" />, "提示词查看器", "开启后显示悬浮按钮，可查看当前提示词", promptViewerEnabled, handlePromptViewerChange)}
+            {toggleRow(<GlassIcon name="quick-action" />, "快捷操作", "快速切换 API 与世界书", quickActionEnabled, handleQuickActionChange)}
+            <button type="button" className="app-card card-featured" onClick={() => setFloatingDockSheetOpen(true)}>
+                <span className="card-icon" style={{ "--icon-color": BINDING_ACCENTS.worldBook } as CSSProperties}><SlidersHorizontal size={20} strokeWidth={1.8} /></span>
+                <div className="card-featured-body">
+                    <div className="card-featured-label">悬浮球偏好设置</div>
+                    <div className="card-featured-desc">贴边半透明收拢模式{floatingDockEnabled ? "（已开启）" : ""}</div>
+                </div>
+                <ChevronRight size={18} className="settings-account-chevron" />
+            </button>
+        </div>
+    );
 
-    const bindingItem = SETTINGS_MENU.find(i => i.id === "binding")!;
-    const bindingFeaturedItem: FeaturedCardItem = {
-        id: bindingItem.id,
-        icon: bindingItem.icon,
-        label: bindingItem.label,
-        desc: bindingItem.desc,
-        iconColor: bindingItem.iconColor,
-        glassIcon: bindingItem.glass,
-        onClick: () => setCurrentPage("binding"),
-    };
+    const renderNotifications = () => (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {toggleRow(<GlassIcon name="keep-alive" />, "后台保活", "切到后台时尽量保持网页运行，主动消息与轮询不中断", keepAlive, handleKeepAliveChange)}
+            <div className="settings-soon settings-soon-inline">
+                <div className="settings-soon-title">锁屏通知中心</div>
+                <p className="settings-soon-desc">锁屏 AI 消息通知、通知中心与离线推送状态展示将在后续版本的锁屏模块中开放。云推送部署仍可在「数据 → 云服务与备份」完成。</p>
+            </div>
+        </div>
+    );
+
+    const renderGeneral = () => (
+        <div className="menu-group settings-group">
+            <button
+                type="button"
+                className="menu-item settings-cell settings-tools-menu-item w-full text-left"
+                onClick={() => window.dispatchEvent(new CustomEvent(OPEN_CHANGELOG_EVENT))}
+            >
+                <span className="card-icon card-icon-glass">
+                    <Sparkles size={22} strokeWidth={1.75} />
+                </span>
+                <span className="settings-tools-menu-copy">
+                    <span className="menu-label appearance-menu-item-label">更新日志</span>
+                    <span className="menu-desc settings-tools-menu-desc">版本 v{APP_VERSION}</span>
+                </span>
+                <span className="menu-right settings-update-row-right">
+                    {updateUnread ? <span className="update-dot update-dot-row" aria-label="有新版本" /> : null}
+                    <ChevronRight size={17} className="settings-account-chevron" />
+                </span>
+            </button>
+        </div>
+    );
+
+    const renderLock = () => (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <button
+                type="button"
+                className="menu-item settings-cell settings-tools-menu-item w-full text-left"
+                onClick={() => navigate("lockPasscode")}
+            >
+                <span className="card-icon card-icon-glass">
+                    <LockKeyhole size={20} strokeWidth={1.8} />
+                </span>
+                <span className="settings-tools-menu-copy">
+                    <span className="menu-label appearance-menu-item-label">锁屏密码</span>
+                    <span className="menu-desc settings-tools-menu-desc">4 位 / 6 位数字密码，上滑解锁保护</span>
+                </span>
+                <span className="menu-right settings-update-row-right">
+                    <ChevronRight size={17} className="settings-account-chevron" />
+                </span>
+            </button>
+            <div className="settings-soon settings-soon-inline">
+                <div className="settings-soon-title">锁屏壁纸与锁屏组件</div>
+                <p className="settings-soon-desc">跟随桌面壁纸 / 自定义壁纸、锁屏 Widget 与状态栏细项将在后续版本的锁屏模块中开放。</p>
+            </div>
+        </div>
+    );
 
     const renderSubPage = () => {
         switch (currentPage) {
+            case "apiHub":
+                return renderApiHub();
             case "api":
                 return <ApiSettings />;
             case "voice":
@@ -325,7 +557,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
             case "cloud":
                 return <CloudServicesPage />;
             case "weixin":
-                return <WeixinSettings onOpenCloudServices={() => setCurrentPage("cloud")} />;
+                return <WeixinSettings onOpenCloudServices={() => navigate("cloud")} />;
             case "toolbox":
                 return <ToolboxSettings />;
             case "agentComputer":
@@ -338,6 +570,22 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                 return <LockPasscodeSettings onNotice={onNotice} />;
             case "about":
                 return <AboutDeclaration />;
+            case "accessibility":
+                return renderAccessibility();
+            case "notifications":
+                return renderNotifications();
+            case "general":
+                return renderGeneral();
+            case "lock":
+                return renderLock();
+            case "vision":
+                return <ComingSoonPage title="视觉识别" lines={["文件智能层与视觉识别 Provider 将在后续版本开放，用于图片理解、截图文字识别与扫描件解析。"]} />;
+            case "mascot":
+                return <ComingSoonPage title="AI 与全局助手" lines={["小淮宝的全局助手能力与系统动作设置将在后续版本开放。工坊仍可从桌面图标直接进入。"]} />;
+            case "display":
+                return <ComingSoonPage title="显示与亮度" lines={["深浅色模式与壁纸当前可在「外观 → 外观与主题」中调整，独立的亮度偏好规划在后续版本提供。"]} />;
+            case "sound":
+                return <ComingSoonPage title="声音与触感" lines={["铃声、提示音与触感偏好规划在后续版本提供。"]} />;
             default:
                 return null;
         }
@@ -345,17 +593,36 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
 
     useLayoutEffect(() => {
         pageBodyRef.current?.scrollTo({ top: 0, left: 0, behavior: "auto" });
-    }, [currentPage]);
+    }, [currentPage, subTab]);
+
+    // 外部深链：页码已由 useState 初始值落在首帧，挂载后仅通知 shell 清掉暂存
+    useEffect(() => {
+        if (initialDeepLink?.page) onDeepLinkConsumed?.();
+    // 仅挂载时消费一次
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // 设置已在前台时的深链事件（控制中心 / mascot / 通知点击等）
+    useEffect(() => {
+        const onDeepLink = (e: Event) => {
+            const detail = (e as CustomEvent<SettingsDeepLink>).detail;
+            if (detail?.page) navigate(detail.page, detail.tab);
+        };
+        window.addEventListener(SETTINGS_DEEP_LINK_EVENT, onDeepLink);
+        return () => window.removeEventListener(SETTINGS_DEEP_LINK_EVENT, onDeepLink);
+    }, [navigate]);
 
     // Check for pending mascot navigation mode on mount (stored by desktop-shell)
     useEffect(() => {
         const pending = sessionStorage.getItem("mascot-settings-mode");
         if (pending) {
             sessionStorage.removeItem("mascot-settings-mode");
-            if (SETTINGS_MENU.some(m => m.id === pending)) {
-                setCurrentPage(pending as SubPage);
+            // 历史 mode 为既存子页 id；新分组 id 也允许透传
+            if (ALL_GROUP_ITEMS.some(i => i.page === pending) || ["api", "voice", "imageGeneration", "presets", "worldbook", "regex", "data", "binding", "cloud", "weixin", "toolbox", "agentComputer", "identity", "about"].includes(pending)) {
+                navigate(pending);
             }
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
@@ -371,23 +638,47 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
     useEffect(() => {
         const onMode = (e: Event) => {
             const { mode } = (e as CustomEvent).detail ?? {};
-            if (mode && SETTINGS_MENU.some(m => m.id === mode)) {
-                setCurrentPage(mode as SubPage);
+            if (!mode) return;
+            if (ALL_GROUP_ITEMS.some(i => i.page === mode)) {
+                navigate(mode);
+                return;
             }
+            const legacyPages = ["api", "voice", "imageGeneration", "presets", "worldbook", "regex", "data", "binding", "cloud", "weixin", "toolbox", "agentComputer", "identity", "about", "moderation", "lockPasscode"];
+            if (legacyPages.includes(mode)) setCurrentPage(mode as SubPage);
         };
         window.addEventListener("mascot-navigate-mode", onMode);
         return () => window.removeEventListener("mascot-navigate-mode", onMode);
-    }, []);
+    }, [navigate]);
 
     // Listen for internal settings tab navigation (e.g. mascot "修改绑定" button)
     useEffect(() => {
         const onNav = (e: Event) => {
             const { page } = (e as CustomEvent).detail ?? {};
-            if (page) setCurrentPage(page as SubPage);
+            if (page) navigate(page);
         };
         window.addEventListener("settings-navigate", onNav);
         return () => window.removeEventListener("settings-navigate", onNav);
-    }, []);
+    }, [navigate]);
+
+    // ── 旧独立 App 全屏兼容槽（外观/角色/资源库）：不包设置 PageShell ──
+    if (LEGACY_SLOT_PAGES.has(currentPage)) {
+        const slot = legacySlots?.[currentPage];
+        return (
+            <SettingsContext.Provider value={{ setSubpageTitle, setOverrideBack, setSubpageRightAction }}>
+                {slot
+                    ? <div key={`${currentPage}:${subTab ?? ""}`}>{slot(handleBack, subTab)}</div>
+                    : <ComingSoonPage title="模块整合中" lines={["该能力正在整合进设置，请通过后续版本入口使用。"]} />}
+            </SettingsContext.Provider>
+        );
+    }
+
+    const renderGroupItemIcon = (item: GroupItem) => {
+        if (item.glass) return <GlassIcon name={item.glass} />;
+        const LucideIcon = item.lucide ?? Palette;
+        return <LucideIcon size={22} strokeWidth={1.75} />;
+    };
+
+    const searchResults = searchQuery.trim() ? searchSettings(searchQuery) : [];
 
     return (
         <SettingsContext.Provider value={{ setSubpageTitle, setOverrideBack, setSubpageRightAction }}>
@@ -404,195 +695,97 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                                 <ChevronRight size={18} className="settings-account-chevron" />
                             </button>
                         )}
-                        <CardGrid
-                            label="API Config"
-                            labelClassName="settings-menu-section-title text-label"
-                            items={SETTINGS_MENU.filter(item => ["api", "voice"].includes(item.id)).map(makeCardItem)}
-                        />
-                        <div className="settings-data-rules-section">
-                            <h3 className="settings-menu-section-title text-label">Data &amp; Rules</h3>
-                            <div className="mt-[10px] flex flex-col gap-3">
-                                <CardGrid
-                                    items={SETTINGS_MENU.filter(item => ["presets", "worldbook", "regex", "data"].includes(item.id)).map(makeCardItem)}
-                                />
-                                <FeaturedCard item={bindingFeaturedItem} />
-                            </div>
-                        </div>
-                        <div className="settings-image-generation-section">
-                            <h3 className="settings-menu-section-title text-label">Image Generation</h3>
-                            <div className="mt-[10px]">
-                                <FeaturedCard item={imageGenerationFeaturedItem} />
-                            </div>
-                        </div>
-                        <div>
-                            <h3 className="settings-menu-section-title text-label">Connections</h3>
-                            <div className="mt-[10px]">
-                                <FeaturedCard item={cloudFeaturedItem} />
-                            </div>
-                            <div className="mt-[10px]">
-                                <CardGrid
-                                    items={SETTINGS_MENU.filter(item => ["weixin", "toolbox"].includes(item.id)).map(makeCardItem)}
-                                />
-                            </div>
-                            <div className="mt-[10px]">
-                                <FeaturedCard item={agentComputerFeaturedItem} />
-                            </div>
-                        </div>
-                        <div className="settings-realtime-section">
-                            <h3 className="settings-menu-section-title text-label">Runtime</h3>
-                            <div className="app-card card-featured settings-toggle-card">
-                                <span className="card-icon card-icon-glass">
-                                    <GlassIcon name="time-aware" />
-                                </span>
-                                <div className="card-featured-body">
-                                    <div className="card-featured-label">真实时间感知</div>
-                                    <div className="card-featured-desc">控制全局历史事件流中是否注入时间戳</div>
-                                </div>
-                                <Toggle checked={timeAware} onChange={handleTimeAwareChange} className="settings-toggle-control" />
-                            </div>
-                            <div className="app-card card-featured settings-toggle-card">
-                                <span className="card-icon card-icon-glass">
-                                    <GlassIcon name="keep-alive" />
-                                </span>
-                                <div className="card-featured-body">
-                                    <div className="card-featured-label">后台保活</div>
-                                    <div className="card-featured-desc">切到后台时尽量保持网页运行，主动消息与轮询不中断</div>
-                                </div>
-                                <Toggle checked={keepAlive} onChange={handleKeepAliveChange} className="settings-toggle-control" />
-                            </div>
-                        </div>
-                        {isAdmin ? (
-                            <div className="settings-moderation-section">
-                                <h3 className="settings-menu-section-title text-label">Moderation</h3>
-                                <div className="app-card card-featured settings-toggle-card" role="button" tabIndex={0} style={{ cursor: "pointer" }} onClick={() => setCurrentPage("moderation")}>
-                                    <span className="card-icon card-icon-glass">
-                                        <GlassIcon name="moderation" />
-                                    </span>
-                                    <div className="card-featured-body">
-                                        <div className="card-featured-label">管理中心</div>
-                                        <div className="card-featured-desc">举报队列、应用审核与用户封禁</div>
-                                    </div>
-                                    <ChevronRight size={18} className="settings-account-chevron" />
-                                </div>
-                            </div>
-                        ) : null}
-                        <div className="settings-tools-section">
-                            <div className="settings-tools-header">
-                                <div className="settings-tools-title-wrap">
-                                    <h3 className="settings-menu-section-title text-label">Tools</h3>
-                                    <button
-                                        type="button"
-                                        className="settings-tools-info-btn"
-                                        onClick={() => setFloatingDockSheetOpen(true)}
-                                        aria-label="悬浮球偏好设置"
-                                        title="悬浮球偏好设置"
-                                    >
-                                        <span className="settings-tools-info-circle">
-                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                                <path d="M15.32 18.27L15.10 19.19Q14.09 19.58 13.49 19.79Q12.89 20 12.10 20Q10.88 20 10.21 19.41Q9.53 18.81 9.53 17.90Q9.53 17.54 9.58 17.17Q9.63 16.80 9.74 16.33L10.58 13.37Q10.69 12.94 10.77 12.56Q10.84 12.18 10.84 11.86Q10.84 11.29 10.61 11.07Q10.37 10.85 9.71 10.85Q9.39 10.85 9.05 10.95Q8.71 11.05 8.46 11.14L8.69 10.23Q9.51 9.89 10.26 9.65Q11.01 9.41 11.69 9.41Q12.89 9.41 13.55 10Q14.20 10.58 14.20 11.52Q14.20 11.71 14.16 12.20Q14.11 12.69 13.99 13.09L13.16 16.05Q13.06 16.40 12.98 16.86Q12.89 17.32 12.89 17.55Q12.89 18.14 13.16 18.35Q13.42 18.57 14.07 18.57Q14.38 18.57 14.76 18.46Q15.15 18.35 15.32 18.27M15.54 5.87Q15.54 6.64 14.95 7.18Q14.37 7.73 13.54 7.73Q12.72 7.73 12.13 7.18Q11.54 6.64 11.54 5.87Q11.54 5.10 12.13 4.55Q12.72 4 13.54 4Q14.37 4 14.95 4.55Q15.54 5.10 15.54 5.87" />
-                                            </svg>
-                                        </span>
-                                    </button>
-                                </div>
-                            </div>
-                            <div className="menu-group settings-group settings-tools-menu">
-                                <div className="menu-item settings-cell settings-tools-menu-item">
-                                    <span className="card-icon card-icon-glass">
-                                        <GlassIcon name="prompt-viewer" />
-                                    </span>
-                                    <span className="settings-tools-menu-copy">
-                                        <span className="menu-label appearance-menu-item-label">提示词查看器</span>
-                                        <span className="menu-desc settings-tools-menu-desc">开启后显示悬浮按钮，可查看当前提示词</span>
-                                    </span>
-                                    <span className="menu-right settings-tools-menu-toggle">
-                                        <Toggle checked={promptViewerEnabled} onChange={handlePromptViewerChange} className="settings-toggle-control" />
-                                    </span>
-                                </div>
-                                <div className="menu-item settings-cell settings-tools-menu-item">
-                                    <span className="card-icon card-icon-glass">
-                                        <GlassIcon name="quick-action" />
-                                    </span>
-                                    <span className="settings-tools-menu-copy">
-                                        <span className="menu-label appearance-menu-item-label">快捷操作</span>
-                                        <span className="menu-desc settings-tools-menu-desc">快速切换 API 与世界书</span>
-                                    </span>
-                                    <span className="menu-right settings-tools-menu-toggle">
-                                        <Toggle checked={quickActionEnabled} onChange={handleQuickActionChange} className="settings-toggle-control" />
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                        <div>
-                            <h3 className="settings-menu-section-title text-label">Security</h3>
-                            <div className="menu-group settings-group mt-[10px]">
-                                <button
-                                    type="button"
-                                    className="menu-item settings-cell settings-tools-menu-item w-full text-left"
-                                    onClick={() => setCurrentPage("lockPasscode")}
-                                >
-                                    <span className="card-icon card-icon-glass">
-                                        <LockKeyhole size={20} strokeWidth={1.8} />
-                                    </span>
-                                    <span className="settings-tools-menu-copy">
-                                        <span className="menu-label appearance-menu-item-label">锁屏密码</span>
-                                        <span className="menu-desc settings-tools-menu-desc">4 位 / 6 位数字密码，上滑解锁保护</span>
-                                    </span>
-                                    <span className="menu-right settings-update-row-right">
-                                        <ChevronRight size={17} className="settings-account-chevron" />
-                                    </span>
+                        <DeviceInfoCard />
+
+                        {/* 顶部搜索：本地索引，标题/副标题/关键词匹配 */}
+                        <div className="settings-search-wrap">
+                            <Search size={16} strokeWidth={1.8} className="settings-search-icon" aria-hidden="true" />
+                            <input
+                                type="search"
+                                className="ui-input settings-search-input"
+                                placeholder="搜索设置（外观、锁屏、世界书、API、推送…）"
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                                autoComplete="off"
+                            />
+                            {searchQuery && (
+                                <button type="button" className="settings-search-clear" aria-label="清除搜索" onClick={() => setSearchQuery("")}>
+                                    <X size={14} strokeWidth={2} />
                                 </button>
-                            </div>
+                            )}
                         </div>
-                        <div className="menu-group settings-group">
-                            <button
-                                type="button"
-                                className="menu-item settings-cell settings-tools-menu-item w-full text-left"
-                                onClick={() => window.dispatchEvent(new CustomEvent(OPEN_CHANGELOG_EVENT))}
-                            >
-                                <span className="card-icon card-icon-glass">
-                                    <Sparkles size={22} strokeWidth={1.75} />
-                                </span>
-                                <span className="settings-tools-menu-copy">
-                                    <span className="menu-label appearance-menu-item-label">更新日志</span>
-                                    <span className="menu-desc settings-tools-menu-desc">版本 v{APP_VERSION}</span>
-                                </span>
-                                <span className="menu-right settings-update-row-right">
-                                    {updateUnread ? <span className="update-dot update-dot-row" aria-label="有新版本" /> : null}
-                                    <ChevronRight size={17} className="settings-account-chevron" />
-                                </span>
-                            </button>
-                        </div>
-                        <CardGrid
-                            label="User"
-                            labelClassName="settings-menu-section-title text-label"
-                            items={SETTINGS_MENU.filter(item => ["identity", "about"].includes(item.id)).map(makeCardItem)}
-                        />
-                        {floatingDockSheetOpen && (
-                            <div className="modal-overlay modal-overlay-bottom" data-ui="modal" onClick={() => setFloatingDockSheetOpen(false)}>
-                                <div className="modal-sheet" data-ui="modal-sheet" onClick={event => event.stopPropagation()}>
-                                    <div className="modal-header" data-ui="modal-header">
-                                        <span style={{ width: 44 }} />
-                                        <h3 className="modal-title">悬浮球设置</h3>
-                                        <button className="modal-header-btn modal-header-btn-muted" onClick={() => setFloatingDockSheetOpen(false)} aria-label="关闭"><X size={18} /></button>
+
+                        {searchQuery.trim() ? (
+                            <div className="settings-search-results">
+                                {searchResults.length === 0 ? (
+                                    <p className="settings-search-empty">没有找到与「{searchQuery.trim()}」相关的设置</p>
+                                ) : (
+                                    <div className="card-grid" style={{ marginTop: 10 }}>
+                                        {searchResults.map(entry => {
+                                            const item = ALL_GROUP_ITEMS.find(i => i.page === entry.page && i.tab === entry.tab);
+                                            const LucideIcon = item?.lucide;
+                                            return (
+                                                <button
+                                                    type="button"
+                                                    className="app-card card-card"
+                                                    key={`${entry.page}:${entry.tab ?? ""}`}
+                                                    onClick={() => navigate(entry.page, entry.tab)}
+                                                >
+                                                    <span
+                                                        className={`card-icon${item?.glass ? " card-icon-glass" : ""}`}
+                                                        style={item?.glass ? undefined : { "--icon-color": item?.iconColor ?? BINDING_ACCENTS.api } as CSSProperties}
+                                                    >
+                                                        {item?.glass
+                                                            ? <GlassIcon name={item.glass} />
+                                                            : LucideIcon
+                                                                ? <LucideIcon size={22} strokeWidth={1.75} />
+                                                                : <Sparkles size={22} strokeWidth={1.75} />}
+                                                    </span>
+                                                    <span className="card-card-body">
+                                                        <span className="card-label">{entry.title}</span>
+                                                        <span className="card-desc">{entry.desc}</span>
+                                                    </span>
+                                                    <ChevronRight size={16} strokeWidth={1.5} className="card-card-chevron" aria-hidden="true" />
+                                                </button>
+                                            );
+                                        })}
                                     </div>
-                                    <div className="modal-body modal-body-tight" data-ui="modal-body">
-                                        <div className="menu-group settings-group">
-                                            <div className="menu-item settings-cell settings-tools-menu-item">
-                                                <span className="card-icon card-icon-glass">
-                                                    <SlidersHorizontal size={20} strokeWidth={1.8} />
-                                                </span>
-                                                <span className="settings-tools-menu-copy">
-                                                    <span className="menu-label appearance-menu-item-label">贴边半透明收拢模式</span>
-                                                </span>
-                                                <span className="menu-right settings-tools-menu-toggle">
-                                                    <Toggle checked={floatingDockEnabled} onChange={handleFloatingDockChange} className="settings-toggle-control" />
-                                                </span>
-                                            </div>
+                                )}
+                            </div>
+                        ) : (
+                            SETTINGS_GROUPS.map(group => {
+                                const items = group.items.filter(item => !item.adminOnly || isAdmin);
+                                if (items.length === 0) return null;
+                                return (
+                                    <div key={group.id} className="settings-group-section">
+                                        <h3 className="settings-menu-section-title text-label">{group.title}</h3>
+                                        <div className="card-grid" style={{ marginTop: 10 }}>
+                                            {items.map(item => (
+                                                <button
+                                                    type="button"
+                                                    className="app-card card-card"
+                                                    key={`${item.page}:${item.tab ?? ""}`}
+                                                    onClick={() => navigate(item.page, item.tab)}
+                                                >
+                                                    <span
+                                                        className={`card-icon${item.glass ? " card-icon-glass" : ""}`}
+                                                        style={item.glass ? undefined : { "--icon-color": item.iconColor } as CSSProperties}
+                                                    >
+                                                        {renderGroupItemIcon(item)}
+                                                    </span>
+                                                    <span className="card-card-body">
+                                                        <span className="card-label">{item.label}</span>
+                                                        <span className="card-desc">{item.desc}</span>
+                                                    </span>
+                                                    <ChevronRight size={16} strokeWidth={1.5} className="card-card-chevron" aria-hidden="true" />
+                                                </button>
+                                            ))}
                                         </div>
                                     </div>
-                                </div>
-                            </div>
+                                );
+                            })
                         )}
+
                         {accountSheetOpen && (
                             <div className="modal-overlay modal-overlay-bottom" data-ui="modal" onClick={() => setAccountSheetOpen(false)}>
                                 <div className="modal-sheet" data-ui="modal-sheet" onClick={event => event.stopPropagation()}>
@@ -686,6 +879,34 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                     //（iOS 底部工具栏/安全区一盖就"没放下又滚不动"）。尾部留白 = 原 pb-8 + 安全区。
                     <div className="block min-h-full shrink-0 p-4 box-border" style={{ paddingBottom: "calc(32px + env(safe-area-inset-bottom, 0px))" }}>
                         {renderSubPage()}
+                    </div>
+                )}
+
+                {/* 悬浮球 sheet 由首页与「辅助功能」子页共同触发，挂在 PageShell 根部 */}
+                {floatingDockSheetOpen && (
+                    <div className="modal-overlay modal-overlay-bottom" data-ui="modal" onClick={() => setFloatingDockSheetOpen(false)}>
+                        <div className="modal-sheet" data-ui="modal-sheet" onClick={event => event.stopPropagation()}>
+                            <div className="modal-header" data-ui="modal-header">
+                                <span style={{ width: 44 }} />
+                                <h3 className="modal-title">悬浮球设置</h3>
+                                <button className="modal-header-btn modal-header-btn-muted" onClick={() => setFloatingDockSheetOpen(false)} aria-label="关闭"><X size={18} /></button>
+                            </div>
+                            <div className="modal-body modal-body-tight" data-ui="modal-body">
+                                <div className="menu-group settings-group">
+                                    <div className="menu-item settings-cell settings-tools-menu-item">
+                                        <span className="card-icon card-icon-glass">
+                                            <SlidersHorizontal size={20} strokeWidth={1.8} />
+                                        </span>
+                                        <span className="settings-tools-menu-copy">
+                                            <span className="menu-label appearance-menu-item-label">贴边半透明收拢模式</span>
+                                        </span>
+                                        <span className="menu-right settings-tools-menu-toggle">
+                                            <Toggle checked={floatingDockEnabled} onChange={handleFloatingDockChange} className="settings-toggle-control" />
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 )}
             </PageShell>

@@ -18,6 +18,7 @@ import { MascotFloat } from "@/components/mascot/mascot-float";
 import { MascotPreviewHost } from "@/components/mascot/mascot-preview-host";
 import { useMusicControlsOptional } from "@/lib/music-context";
 import type { ResourceSubPage } from "@/components/phone-resources-app";
+import { SETTINGS_DEEP_LINK_EVENT, type SettingsDeepLink } from "@/components/settings/settings-deep-link";
 import { CustomAppForegroundBoundary } from "@/components/app-market/custom-app-failure";
 
 /* ── 动态加载的 App 组件：只在用户打开对应 App 时才编译，
@@ -1064,6 +1065,15 @@ const MusicShellOverlays = memo(function MusicShellOverlays({
   );
 });
 
+// 0.8.0 T4：旧三 App id → 设置内全屏兼容槽页 id
+const LEGACY_APP_SETTINGS_PAGE: Record<string, string> = {
+  theme: "appearance",
+  characters: "worldCharacters",
+  resources: "worldResources",
+};
+// 资源库槽接受的二级 tab（PhoneResourcesApp ResourceSubPage）
+const RESOURCE_SLOT_TABS = new Set<string>(["main", "memory", "vn_assets"]);
+
 export function DesktopShell({ initialThemeProfile, initialThemeAssets }: DesktopShellProps) {
   const musicOverlayControllerRef = useRef<MusicOverlayController | null>(null);
   const handleMusicOverlayControllerChange = useCallback((controller: MusicOverlayController | null) => {
@@ -1104,7 +1114,9 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
   const [customAppBackgroundToolRuns, setCustomAppBackgroundToolRuns] = useState<CustomAppBackgroundToolRun[]>([]);
   const backgroundRunSeqRef = useRef(0);
   const pendingCustomAppBackgroundToolsRef = useRef<Map<string, PendingCustomAppBackgroundTool>>(new Map());
-  const [resourcesInitialPage, setResourcesInitialPage] = useState<ResourceSubPage>("main");
+  // 0.8.0 T4：旧三 App（theme/characters/resources）入口统一打开设置并深链到
+  // appearance/worldCharacters/worldResources 全屏兼容槽；PhoneSettingsApp 挂载时消费一次。
+  const [settingsDeepLink, setSettingsDeepLink] = useState<SettingsDeepLink | null>(null);
   const [dwellingMounted, setDwellingMounted] = useState(false);
   const [xiaohongshuMounted, setXiaohongshuMounted] = useState(false);
   const [xiaohongshuBusy, setXiaohongshuBusy] = useState(false);
@@ -1916,23 +1928,59 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
   // WeChat iLink Bot bridge (polls messages for all enabled bots)
   useWeixinBridge();
 
+  // 统一的「打开设置并定位子页」入口：设置未挂载走 initialDeepLink（挂载消费一次）；
+  // 已在前台则派发深链事件让 PhoneSettingsApp 即时导航，不缓存旧链。
+  const requestSettingsDeepLink = useCallback((link: SettingsDeepLink) => {
+    if (activeAppRef.current === "settings") {
+      window.dispatchEvent(new CustomEvent(SETTINGS_DEEP_LINK_EVENT, { detail: link }));
+      return;
+    }
+    activeAppRef.current = "settings";
+    setSettingsDeepLink(link);
+    setActiveApp("settings");
+  }, []);
+
   // Listen for mascot navigation events
   useEffect(() => {
     const onMascotNav = (e: Event) => {
       const { app, mode } = (e as CustomEvent).detail ?? {};
-      if (app === "desktop") setActiveApp(null);
-      else if (app) {
-        setActiveApp(app as DesktopIconId);
-        // Forward mode (e.g. "worldbook") so the target app can jump to the right sub-page
-        if (mode) {
-          // Store mode for settings page to read on mount (event might miss if component hasn't mounted yet)
-          sessionStorage.setItem("mascot-settings-mode", mode);
-          setTimeout(() => window.dispatchEvent(new CustomEvent("mascot-navigate-mode", { detail: { mode } })), 100);
-        }
+      if (app === "desktop") {
+        setActiveApp(null);
+        return;
+      }
+      if (!app) return;
+      // T4：theme/characters/resources 已收编进设置（全屏兼容槽）
+      const legacyPage = LEGACY_APP_SETTINGS_PAGE[app as string];
+      if (legacyPage) {
+        const tab = app === "resources" && typeof mode === "string" && RESOURCE_SLOT_TABS.has(mode) ? mode : undefined;
+        requestSettingsDeepLink(tab ? { page: legacyPage, tab } : { page: legacyPage });
+        return;
+      }
+      setActiveApp(app as DesktopIconId);
+      // Forward mode (e.g. "worldbook") so the target app can jump to the right sub-page
+      if (mode) {
+        // Store mode for settings page to read on mount (event might miss if component hasn't mounted yet)
+        sessionStorage.setItem("mascot-settings-mode", mode);
+        setTimeout(() => window.dispatchEvent(new CustomEvent("mascot-navigate-mode", { detail: { mode } })), 100);
       }
     };
     window.addEventListener("mascot-navigate", onMascotNav);
     return () => window.removeEventListener("mascot-navigate", onMascotNav);
+  }, [requestSettingsDeepLink]);
+
+  // 外部入口（控制中心 / 通知点击 / openSettingsPage）在设置未挂载时拉起设置
+  useEffect(() => {
+    const onSettingsDeepLink = (e: Event) => {
+      const detail = (e as CustomEvent<SettingsDeepLink>).detail;
+      if (!detail?.page) return;
+      // 设置已在前台时 PhoneSettingsApp 自己监听本事件即时导航，shell 不缓存
+      if (activeAppRef.current === "settings") return;
+      activeAppRef.current = "settings";
+      setSettingsDeepLink({ page: detail.page, tab: detail.tab });
+      setActiveApp("settings");
+    };
+    window.addEventListener(SETTINGS_DEEP_LINK_EVENT, onSettingsDeepLink);
+    return () => window.removeEventListener(SETTINGS_DEEP_LINK_EVENT, onSettingsDeepLink);
   }, []);
 
   // Update mascot context when activeApp changes
@@ -2415,7 +2463,12 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
       openWorldBuilder(meta.path);
       return;
     }
-    if (builtinIconId === "resources") setResourcesInitialPage("main");
+    // 0.8.0 T4：旧 Dock/文件夹里的主题/角色/资源库图标 → 打开设置对应全屏兼容槽
+    const legacySettingsPage = LEGACY_APP_SETTINGS_PAGE[builtinIconId];
+    if (legacySettingsPage) {
+      requestSettingsDeepLink({ page: legacySettingsPage });
+      return;
+    }
     if (builtinIconId === "chat") setChatInitSessionId(null);
     setActiveApp(builtinIconId);
   }
@@ -2476,6 +2529,16 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
           else setChatInitSessionId(null);
           return;
         }
+        // 0.8.0 T4：open-app 事件指向旧三 App 时同样收编进设置全屏兼容槽
+        const legacyPage = LEGACY_APP_SETTINGS_PAGE[nextAppId];
+        if (legacyPage) {
+          const resourceTab = nextAppId === "resources"
+            && (detail.resourcePage === "vn_assets" || detail.resourcePage === "memory")
+            ? detail.resourcePage
+            : undefined;
+          requestSettingsDeepLink(resourceTab ? { page: legacyPage, tab: resourceTab } : { page: legacyPage });
+          return;
+        }
         setCustomAppLaunchContext(customAppId
           ? {
             appId: customAppId,
@@ -2484,9 +2547,6 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
           }
           : null);
         setAppMarketLaunchContext(nextAppId === "appmarket" ? launchContextRecord : null);
-        if (detail.appId === "resources") {
-          setResourcesInitialPage(detail.resourcePage === "vn_assets" || detail.resourcePage === "memory" ? detail.resourcePage : "main");
-        }
         setActiveApp(nextAppId as DesktopIconId);
         if (detail.sessionId) setChatInitSessionId(detail.sessionId);
         else setChatInitSessionId(null);
@@ -2494,7 +2554,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
     };
     window.addEventListener("open-app", handler);
     return () => window.removeEventListener("open-app", handler);
-  }, []);
+  }, [requestSettingsDeepLink]);
 
   // Mini chat window state
   const [showMiniChat, setShowMiniChat] = useState(false);
@@ -4171,16 +4231,52 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
         <PhoneSettingsApp
           onClose={() => setActiveApp(null)}
           onNotice={setNotice}
+          initialDeepLink={settingsDeepLink}
+          onDeepLinkConsumed={() => setSettingsDeepLink(null)}
+          legacySlots={{
+            // T4：旧三 App 全屏兼容槽，组件与功能 100% 保留；返回键回设置首页。
+            // T5/T6/T7 完成整合后用共享组件替换对应槽位。
+            appearance: (back: () => void) => (
+              <PhoneThemeApp
+                draft={draftTheme}
+                onDraftChange={setDraftTheme}
+                onApply={applyTheme}
+                onClose={back}
+                onNotice={setNotice}
+                widgets={widgets}
+                onWidgetsChange={handleWidgetsChange}
+                onDesktopThemeChange={handleThemeDesktopChange}
+                pageIcons={layout}
+                iconSkins={iconSkinUrls}
+                wallpaperStyle={wallpaperStyle}
+              />
+            ),
+            worldCharacters: (back: () => void) => (
+              <PhoneCharacterApp
+                onClose={back}
+                onNotice={setNotice}
+              />
+            ),
+            worldResources: (back: () => void, tab?: string) => (
+              <PhoneResourcesApp
+                onClose={back}
+                onNotice={setNotice}
+                initialPage={(tab === "memory" || tab === "vn_assets" ? tab : "main") as ResourceSubPage}
+              />
+            ),
+          }}
         />
       );
     }
 
+    // 兜底分支：所有已知入口（openApp / mascot-navigate / open-app）均已把
+    // resources 收编进设置槽，保留渲染仅作防御。
     if (activeApp === "resources") {
       return (
         <PhoneResourcesApp
           onClose={() => setActiveApp(null)}
           onNotice={setNotice}
-          initialPage={resourcesInitialPage}
+          initialPage="main"
         />
       );
     }
