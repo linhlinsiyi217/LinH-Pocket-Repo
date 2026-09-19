@@ -1,4 +1,13 @@
-const CACHE_VERSION = "ai-phone-pwa-v12";
+// ─────────────────────────────────────────────────────────────
+// PWA Service Worker —— 版本 / 更新 / 接管策略（Task 4.5）
+//
+// 【bump 规则】以下任一情况必须把 CACHE_VERSION 数字 +1（v13 → v14 …）：
+//   1. 正式发版（Vercel 生产构建）；
+//   2. 本文件缓存策略（预缓存清单 / 导航策略 / 静态策略）发生变更。
+// activate 时仅删除「不属于当前版本前缀」的 Cache Storage；
+// 绝不触碰 IndexedDB / localStorage / sessionStorage（用户数据零清理）。
+// ─────────────────────────────────────────────────────────────
+const CACHE_VERSION = "ai-phone-pwa-v13";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -9,16 +18,33 @@ const PRECACHE_URLS = [
   "/icon-512.png",
 ];
 
+// 导航网络超时：超过该时长且本地有可用快照时先回落快照，避免弱网长挂起；
+// 本地没有快照时继续等待真实网络（不中断请求）。
+const NAVIGATION_TIMEOUT_MS = 4500;
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(STATIC_CACHE)
-      .then((cache) => cache.addAll(PRECACHE_URLS))
+      // 单项失败（弱网/离线安装）不阻断新 SW install → activate，
+      // 缺的 "/" 快照由 activate 阶段补拉，离线兜底仍可走旧快照。
+      .then((cache) => Promise.allSettled(
+        PRECACHE_URLS.map((url) => cache.add(url))
+      ))
       .then(() => self.skipWaiting())
   );
 });
 
+// 允许客户端在「等待中 SW」场景主动推进（updatefound waiting 分支的兜底）。
+self.addEventListener("message", (event) => {
+  const data = event.data;
+  if (data === "SKIP_WAITING" || (data && data.type === "SKIP_WAITING")) {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener("activate", (event) => {
   event.waitUntil(
+    // 只清旧版本前缀缓存：旧 hash chunk / 旧运行时缓存随版本安全淘汰。
     caches.keys()
       .then((keys) => Promise.all(
         keys
@@ -26,7 +52,8 @@ self.addEventListener("activate", (event) => {
           .map((key) => caches.delete(key))
       ))
       // 刷新预缓存的 "/" 快照：它是离线导航的最终兜底，若停留在旧部署版本，
-      // 引用的旧 hash CSS/JS 已 404，会渲染出无样式页面（文字堆在左上角）。
+      // 引用的旧 hash CSS/JS 已 404，会渲染出无样式页面。失败（离线）则保留
+      // install 阶段刚拿到的快照。
       .then(() => caches.open(STATIC_CACHE))
       .then((cache) => cache.add(new Request("/", { cache: "reload" })).catch(() => {}))
       .then(() => self.clients.claim())
@@ -42,25 +69,56 @@ function isCacheableRequest(request) {
   return ["font", "image", "script", "style", "worker"].includes(request.destination);
 }
 
+// 导航回退链：精确请求（带 query 也只按 pathname 存）→ "/" 快照（任意缓存）。
+async function matchNavigationFallback(cache, request) {
+  const pathname = new URL(request.url).pathname;
+  const cached =
+    (await cache.match(request)) ||
+    (await cache.match(pathname)) ||
+    (await caches.match("/"));
+  return cached || null;
+}
+
+// 导航：network-first（在线绝不返回旧 HTML，跨构建版本不复用快照）。
+// - 网络成功：以 pathname 为键写入运行时缓存（剥离 query，避免每个 ?v= 留一份）。
+// - 网络超时但本地有快照：先给快照；无快照则继续等网络。
+// - 网络错误（离线）：回退缓存 "/"。
 async function networkFirst(request) {
   const cache = await caches.open(RUNTIME_CACHE);
-  try {
-    const response = await fetch(request);
-    if (response.ok) cache.put(request, response.clone());
+  const networkRequest = new Request(request, { cache: "no-cache" });
+  const fetchPromise = fetch(networkRequest).then((response) => {
+    if (response.ok) {
+      const key = new Request(new URL(request.url).pathname);
+      cache.put(key, response.clone()).catch(() => {});
+    }
     return response;
-  } catch (error) {
-    const cached = await cache.match(request);
-    if (cached) return cached;
-    const fallback = await caches.match("/");
-    if (fallback) return fallback;
-    throw error;
+  });
+
+  const timeout = new Promise((resolve) => {
+    setTimeout(() => resolve(null), NAVIGATION_TIMEOUT_MS);
+  });
+
+  let response = null;
+  try {
+    response = await Promise.race([fetchPromise, timeout]);
+  } catch {
+    response = null;
   }
+  if (response) return response;
+
+  const cached = await matchNavigationFallback(cache, request);
+  if (cached) return cached;
+  // 超时且无快照：继续等真实网络；若网络已失败这里会抛错，交由浏览器处理。
+  return fetchPromise;
 }
 
 // 静态资源（字体/图片/脚本/样式/模型）用 cache-first：命中缓存直接返回，
 // 不再每次都在后台把整份文件重新拉一遍校验。字体动辄 7~24MB，旧的
 // stale-while-revalidate 会持续重下，是带宽爆掉的主因之一。
+// `_next/static` 内为内容 hash 不可变文件，天然适配 cache-first；
 // 需要更新缓存内容时，升 CACHE_VERSION 即可让旧缓存在 activate 时清空。
+// 未命中且网络失败（旧 hash 已随部署淘汰）→ 由客户端 ChunkLoadError
+// 一次性 reload 策略兜底（见 components/pwa-registrar.tsx），不让用户白屏。
 async function cacheFirst(request) {
   const cache = await caches.open(RUNTIME_CACHE);
   const cached = await cache.match(request);
@@ -82,7 +140,7 @@ self.addEventListener("push", (event) => {
     ? data.notification
     : null;
   const notificationData = declarative && declarative.data && typeof declarative.data === "object"
-    ? declarative.data
+    ? data.notification
     : data;
   const title = (declarative && declarative.title) || data.title || "小手机";
   event.waitUntil((async () => {

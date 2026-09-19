@@ -28,6 +28,7 @@ import remarkGfm from "remark-gfm";
 import { createPortal } from "react-dom";
 
 import { loadCharacters } from "@/lib/character-storage";
+import { registerPwaRefreshGuard } from "@/lib/pwa-update-guard";
 import { Character } from "@/lib/character-types";
 import { loadCustomAppChatPlusActions, type RegisteredCustomAppChatPlusAction } from "@/lib/custom-app-chat-directives";
 import { CUSTOM_APPS_UPDATED_EVENT, getInstalledCustomApp } from "@/lib/custom-app-storage";
@@ -1531,6 +1532,12 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
             window.removeEventListener("weixin-generating", onWeixinGenerating);
         };
     }, [session.id, syncMessagesFromStorage]);
+
+    // Task 4.5：PWA 新版本接管时，流式生成 / 离线生成 / 待发送生成中
+    // 不允许被自动刷新打断（此时只弹更新提示，由用户自己点刷新）。
+    useEffect(() => registerPwaRefreshGuard(() =>
+        isGeneratingRef.current || isOfflineGenerating || pendingGenerate
+    ), [isOfflineGenerating, pendingGenerate]);
 
     // Listen for messages inserted by other apps, such as share-to-chat cards.
     useEffect(() => {
