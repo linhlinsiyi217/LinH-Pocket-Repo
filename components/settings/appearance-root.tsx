@@ -519,7 +519,8 @@ export function AppearanceRoot({
                 ariaLabel="显示应用内状态栏"
                 checked={!draft.hideTopBar}
                 onChange={(checked) => {
-                  const next = { ...draft, hideTopBar: !checked };
+                  // 4.5.x：拨动开关即记录「用户显式选择」，此后迁移不再改写
+                  const next = { ...draft, hideTopBar: !checked, hideTopBarExplicit: true };
                   onDraftChange(next);
                   onApply(next);
                 }}

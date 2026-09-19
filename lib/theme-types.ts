@@ -49,6 +49,10 @@ export type ThemeProfile = {
   fontFamily: string;
   // 手机外观
   hideTopBar: boolean;
+  // 用户是否显式设置过 hideTopBar（4.5.x 迁移标记）：旧档案默认值为 true 且
+  // 从未记录用户意愿，一律视为「从未主动关闭」→ 恢复显示；用户在设置里
+  // 拨动过开关后此标记置 true，此后完全尊重存储值。平台/系统策略禁止改写。
+  hideTopBarExplicit?: boolean;
   // 移动端：手机画面整体上移的像素数，用于裁掉顶部状态栏占位、把底部栏顶回可视区。
   // 0 = 不上移（iOS 等能全屏的浏览器保持 0）；安卓按真实状态栏高度调到刚好铺满。
   statusBarDropPx: number;
@@ -197,7 +201,10 @@ export const DEFAULT_THEME_PROFILE: ThemeProfile = {
   dockSkinAssetId: null,
   fontAssetId: null,
   fontFamily: DEFAULT_FONT_FAMILY,
-  hideTopBar: true,
+  // 4.5.x：模拟状态栏（时间/灵动岛/信号/Wi-Fi/电池）默认始终显示，
+  // 仅用户在设置 → 外观与主题 → 桌面 里主动关闭才隐藏。
+  hideTopBar: false,
+  hideTopBarExplicit: false,
   statusBarDropPx: 0,
   cssOverrides: {},
   globalCustomCSS: "",
@@ -388,7 +395,16 @@ export function normalizeThemeProfile(raw: unknown): ThemeProfile {
     : DEFAULT_FONT_FAMILY;
 
   // ── Display ──
-  base.hideTopBar = typeof source.hideTopBar === "boolean" ? source.hideTopBar : base.hideTopBar;
+  // 4.5.x 迁移：历史默认值是 true（隐藏），但从未记录用户是否主动关闭。
+  // 无显式标记的档案一律按「从未主动关闭」处理 → 恢复显示（false）；
+  // 有显式标记的档案完全尊重存储值。绝不由平台/系统策略自动改写。
+  if (source.hideTopBarExplicit === true) {
+    base.hideTopBar = typeof source.hideTopBar === "boolean" ? source.hideTopBar : false;
+    base.hideTopBarExplicit = true;
+  } else {
+    base.hideTopBar = false;
+    base.hideTopBarExplicit = false;
+  }
   base.statusBarDropPx = typeof source.statusBarDropPx === "number" && isFinite(source.statusBarDropPx as number)
     ? Math.min(120, Math.max(0, Math.round(source.statusBarDropPx as number))) : 0;
 

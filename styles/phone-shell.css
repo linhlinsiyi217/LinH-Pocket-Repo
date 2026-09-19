@@ -1121,106 +1121,14 @@
 
 @media (max-width: 500px) and (hover: none) and (pointer: coarse) {
 
-  /* 用户在设置里显式开启「显示系统状态栏」、或运行在 Android 等非 iOS 安装 PWA
-     （standalone/fullscreen）时，首帧内联脚本 / pwa-manifest-injector 会挂
-     data-pwa-display-mode 标记：此时所有 App 共用系统安全区，不再重复预留 48px
-     虚拟状态栏（否则真实系统栏 + 模拟栏形成双状态栏）。
-     iOS 装机用户永远报 standalone，未显式选择时不挂标记，模拟状态栏继续承接
-     系统区，保持历史沉浸外观。 */
-  html[data-pwa-display-mode="fullscreen"] .phone-shell,
-  html[data-pwa-display-mode="standalone"] .phone-shell,
-  html[data-pwa-display-mode="minimal-ui"] .phone-shell,
-  html[data-pwa-display-mode="browser"] .phone-shell {
-    --safe-area-top: env(safe-area-inset-top, 0px);
-    --phone-titlebar-safe-top: env(safe-area-inset-top, 0px);
-    --page-header-safe-top: env(safe-area-inset-top, 0px);
-    --home-grid-top-offset: calc(env(safe-area-inset-top, 0px) + 16px);
-  }
-
-  html[data-pwa-display-mode="fullscreen"] .phone-shell > .phone-status-bar,
-  html[data-pwa-display-mode="standalone"] .phone-shell > .phone-status-bar,
-  html[data-pwa-display-mode="minimal-ui"] .phone-shell > .phone-status-bar,
-  html[data-pwa-display-mode="browser"] .phone-shell > .phone-status-bar {
-    display: none;
-  }
-
-  html[data-pwa-display-mode="fullscreen"] .phone-shell-wrap,
-  html[data-pwa-display-mode="standalone"] .phone-shell-wrap,
-  html[data-pwa-display-mode="minimal-ui"] .phone-shell-wrap,
-  html[data-pwa-display-mode="browser"] .phone-shell-wrap {
-    margin-top: 0;
-  }
-
-  /* 锁屏同样避免双状态栏：隐藏模拟栏，内容只按 env 安全区避让。
-     锁屏渲染在 .phone-shell 之外，需单独覆盖。 */
-  html[data-pwa-display-mode="fullscreen"] .ios-lock-card .phone-status-bar,
-  html[data-pwa-display-mode="standalone"] .ios-lock-card .phone-status-bar,
-  html[data-pwa-display-mode="minimal-ui"] .ios-lock-card .phone-status-bar,
-  html[data-pwa-display-mode="browser"] .ios-lock-card .phone-status-bar {
-    display: none;
-  }
-
-  html[data-pwa-display-mode="fullscreen"] .ios-lock-content,
-  html[data-pwa-display-mode="standalone"] .ios-lock-content,
-  html[data-pwa-display-mode="minimal-ui"] .ios-lock-content,
-  html[data-pwa-display-mode="browser"] .ios-lock-content {
-    padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
-  }
-
-  /* 纯 CSS 兜底层：不依赖 cookie 偏好，直接按 display-mode 分别处理，
-     仅对非 iOS 设备生效（data-mobile-os 由首帧内联脚本写入）。
-     与上面的属性驱动层等价，任一生效即可，互不冲突。 */
-  @media (display-mode: standalone) {
-    html[data-mobile-os="android"] .phone-shell,
-    html[data-mobile-os="other"] .phone-shell {
-      --safe-area-top: env(safe-area-inset-top, 0px);
-      --phone-titlebar-safe-top: env(safe-area-inset-top, 0px);
-      --page-header-safe-top: env(safe-area-inset-top, 0px);
-      --home-grid-top-offset: calc(env(safe-area-inset-top, 0px) + 16px);
-    }
-    html[data-mobile-os="android"] .phone-shell > .phone-status-bar,
-    html[data-mobile-os="other"] .phone-shell > .phone-status-bar {
-      display: none;
-    }
-    html[data-mobile-os="android"] .phone-shell-wrap,
-    html[data-mobile-os="other"] .phone-shell-wrap {
-      margin-top: 0;
-    }
-    html[data-mobile-os="android"] .ios-lock-card .phone-status-bar,
-    html[data-mobile-os="other"] .ios-lock-card .phone-status-bar {
-      display: none;
-    }
-    html[data-mobile-os="android"] .ios-lock-content,
-    html[data-mobile-os="other"] .ios-lock-content {
-      padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
-    }
-  }
-
-  @media (display-mode: fullscreen) {
-    html[data-mobile-os="android"] .phone-shell,
-    html[data-mobile-os="other"] .phone-shell {
-      --safe-area-top: env(safe-area-inset-top, 0px);
-      --phone-titlebar-safe-top: env(safe-area-inset-top, 0px);
-      --page-header-safe-top: env(safe-area-inset-top, 0px);
-      --home-grid-top-offset: calc(env(safe-area-inset-top, 0px) + 16px);
-    }
-    html[data-mobile-os="android"] .phone-shell > .phone-status-bar,
-    html[data-mobile-os="other"] .phone-shell > .phone-status-bar {
-      display: none;
-    }
-    html[data-mobile-os="android"] .phone-shell-wrap,
-    html[data-mobile-os="other"] .phone-shell-wrap {
-      margin-top: 0;
-    }
-    html[data-mobile-os="android"] .ios-lock-card .phone-status-bar,
-    html[data-mobile-os="other"] .ios-lock-card .phone-status-bar {
-      display: none;
-    }
-    html[data-mobile-os="android"] .ios-lock-content,
-    html[data-mobile-os="other"] .ios-lock-content {
-      padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
-    }
-  }
+  /* 【4.5.x 硬性规则】模拟 iPhone 状态栏（.phone-status-bar：时间/灵动岛/信号/
+     Wi-Fi/电池）在所有平台始终显示——主屏、锁屏、Android 浏览器、Android PWA
+     standalone/fullscreen 一律不得用 CSS 隐藏。历史版本曾为避免「真实系统栏 +
+     模拟栏双层显示」在 PWA display-mode 下 display:none 本栏，该策略已正式废弃：
+     真实系统栏改由 theme-color / 页面背景延伸融合，平台无法隐藏时允许两者共存，
+     但模拟栏必须可见。几何（position/top/宽高/字号/DOM）零改动，前景色仍由
+     Light-Dark 令牌驱动。唯一合法隐藏途径：用户在设置 → 外观与主题 → 桌面 →
+     「显示应用内状态栏」主动关闭（hideTopBar=true）。 */
 
   :root {
     --phone-screen-width: 100vw;
