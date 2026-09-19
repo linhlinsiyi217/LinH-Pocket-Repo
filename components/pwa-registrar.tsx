@@ -17,7 +17,10 @@ import {
 //    sessionStorage 时间闸限制最小刷新间隔，杜绝死循环。
 // 不清理任何 IDB / localStorage / 用户缓存。
 // ─────────────────────────────────────────────────────────────
-// upgrade-test round A（4.5.1 三轮真升级测试用构建标记，随测试轮换）
+// upgrade-test round 1（4.5.1 三轮真升级测试：真实源码字节标记，随轮次更新；
+// 仅供测试核对构建代际，无行为影响）
+const UPGRADE_TEST_MARKER = "t45-round-1";
+try { window.sessionStorage.setItem("t45-build-marker", UPGRADE_TEST_MARKER); } catch {}
 
 
 const RELOAD_GUARD_KEY = "pwa-reload-guard-v1";
