@@ -19,7 +19,7 @@
 //
 // 绝不触碰 IndexedDB / localStorage / sessionStorage（用户数据零清理）。
 // ─────────────────────────────────────────────────────────────
-const CACHE_VERSION = "ai-phone-pwa-v16";
+const CACHE_VERSION = "ai-phone-pwa-v17";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -77,9 +77,12 @@ self.addEventListener("message", (event) => {
   }
 });
 
-// 从缓存名解析代数：ai-phone-pwa-v13-static → 13；非本项目管理的缓存返回 NaN。
+// 从缓存名解析代数：ai-phone-pwa-v13-static → 13；也兼容裸版本号
+// ai-phone-pwa-v13（activate 传 CACHE_VERSION 时命中此形态，4.5.1 round 2
+// 实测发现：旧正则要求尾随 "-"，导致当前代解析为 NaN、activate 永不清缓存）。
+// 非本项目管理的缓存返回 NaN。
 function cacheGenerationOf(key) {
-  const match = key.match(/^ai-phone-pwa-v(\d+)-/);
+  const match = key.match(/^ai-phone-pwa-v(\d+)(?:$|-)/);
   return match ? Number(match[1]) : NaN;
 }
 
