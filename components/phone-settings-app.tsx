@@ -160,6 +160,7 @@ const SETTINGS_GROUPS: SettingsGroup[] = [
             { page: "toolbox", label: "工具箱", desc: "聊天外部工具调用", iconColor: BINDING_ACCENTS.voice, glass: "toolbox" },
             { page: "accessibility", label: "辅助功能", desc: "时间感知 · 悬浮球 · 快捷操作", iconColor: BINDING_ACCENTS.identity, lucide: Accessibility },
             { page: "general", label: "通用", desc: "更新日志与版本", iconColor: BINDING_ACCENTS.memory, lucide: SlidersHorizontal },
+            { page: "identity", label: "用户身份", desc: "个人信息", iconColor: BINDING_ACCENTS.identity, glass: "identity" },
             { page: "about", label: "关于与声明", desc: "版本与协议", iconColor: BINDING_ACCENTS.memory, glass: "about" },
             { page: "moderation", label: "管理中心", desc: "举报 · 审核 · 封禁", iconColor: BINDING_ACCENTS.regex, glass: "moderation", adminOnly: true },
         ],
@@ -167,6 +168,17 @@ const SETTINGS_GROUPS: SettingsGroup[] = [
 ];
 
 const ALL_GROUP_ITEMS: GroupItem[] = SETTINGS_GROUPS.flatMap(g => g.items);
+
+/**
+ * 搜索命中但首页分组里没有独立卡片的子页（它们挂在聚合页内，如 API 与模型下的
+ * api/voice/imageGeneration/vision），搜索结果仍展示对应真实图标。
+ */
+const SEARCH_ICON_FALLBACK: Partial<Record<string, Pick<GroupItem, "glass" | "lucide" | "iconColor">>> = {
+    api: { glass: "api", iconColor: BINDING_ACCENTS.api },
+    voice: { glass: "voice", iconColor: BINDING_ACCENTS.voice },
+    imageGeneration: { glass: "image-generation", iconColor: BINDING_ACCENTS.api },
+    vision: { lucide: Eye, iconColor: BINDING_ACCENTS.memory },
+};
 
 const accountIconStyle = {
     "--icon-color": BINDING_ACCENTS.identity,
@@ -722,8 +734,10 @@ export function PhoneSettingsApp({ onClose, onNotice, initialDeepLink = null, on
                                 ) : (
                                     <div className="card-grid" style={{ marginTop: 10 }}>
                                         {searchResults.map(entry => {
-                                            const item = ALL_GROUP_ITEMS.find(i => i.page === entry.page && i.tab === entry.tab);
-                                            const LucideIcon = item?.lucide;
+                                            const iconSpec = ALL_GROUP_ITEMS.find(i => i.page === entry.page && i.tab === entry.tab)
+                                                ?? SEARCH_ICON_FALLBACK[entry.page]
+                                                ?? { iconColor: BINDING_ACCENTS.api, lucide: Sparkles };
+                                            const LucideIcon = iconSpec.lucide;
                                             return (
                                                 <button
                                                     type="button"
@@ -732,11 +746,11 @@ export function PhoneSettingsApp({ onClose, onNotice, initialDeepLink = null, on
                                                     onClick={() => navigate(entry.page, entry.tab)}
                                                 >
                                                     <span
-                                                        className={`card-icon${item?.glass ? " card-icon-glass" : ""}`}
-                                                        style={item?.glass ? undefined : { "--icon-color": item?.iconColor ?? BINDING_ACCENTS.api } as CSSProperties}
+                                                        className={`card-icon${iconSpec.glass ? " card-icon-glass" : ""}`}
+                                                        style={iconSpec.glass ? undefined : { "--icon-color": iconSpec.iconColor } as CSSProperties}
                                                     >
-                                                        {item?.glass
-                                                            ? <GlassIcon name={item.glass} />
+                                                        {iconSpec.glass
+                                                            ? <GlassIcon name={iconSpec.glass} />
                                                             : LucideIcon
                                                                 ? <LucideIcon size={22} strokeWidth={1.75} />
                                                                 : <Sparkles size={22} strokeWidth={1.75} />}
