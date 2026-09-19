@@ -329,7 +329,7 @@ export function AppearanceRoot({
                     <Gauge size={20} strokeWidth={1.75} />
                   </span>
                   <span className="menu-label appearance-menu-item-label">Pearl Glass 强度</span>
-                  <span className="menu-right">
+                  <span className="menu-right" style={{ gap: 4 }}>
                     <span className="ts-11" style={{ color: "var(--c-icon)" }}>{glassStrengthPct}%</span>
                     <IconChevronRight />
                   </span>
@@ -360,7 +360,7 @@ export function AppearanceRoot({
                   />
                 </div>
                 <button
-                  className="menu-item"
+                  className="menu-item disabled:opacity-40"
                   type="button"
                   onClick={() => setShowThemeTransfer(true)}
                   disabled={themeTransferBusy}
@@ -370,7 +370,7 @@ export function AppearanceRoot({
                   <span className="menu-right"><IconChevronRight /></span>
                 </button>
                 <button
-                  className="menu-item"
+                  className="menu-item disabled:opacity-40"
                   type="button"
                   onClick={handleExportTheme}
                   disabled={themeTransferBusy}
@@ -384,7 +384,7 @@ export function AppearanceRoot({
                   <span className="menu-right"><IconChevronRight /></span>
                 </button>
                 <button
-                  className="menu-item"
+                  className="menu-item disabled:opacity-40"
                   type="button"
                   onClick={() => setConfirmThemeReset(true)}
                   disabled={themeTransferBusy}
