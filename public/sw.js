@@ -19,7 +19,7 @@
 //
 // 绝不触碰 IndexedDB / localStorage / sessionStorage（用户数据零清理）。
 // ─────────────────────────────────────────────────────────────
-const CACHE_VERSION = "ai-phone-pwa-v15";
+const CACHE_VERSION = "ai-phone-pwa-v16";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
