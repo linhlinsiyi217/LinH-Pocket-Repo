@@ -7,7 +7,7 @@ import {
 } from "@/lib/pwa-update-guard";
 
 // ─────────────────────────────────────────────────────────────
-// PWA 更新链路（Task 4.5）
+// PWA 更新链路（Task 4.5 / 4.5.1）
 // 1. 注册时 updateViaCache:"none" —— sw.js 永远走网络校验，不被 HTTP 缓存拖住；
 // 2. updatefound / statechange / controllerchange 全程监听新版本；
 // 3. 新 SW 接管时：安全（无流式生成/未保存输入）→ 静默 reload 一次；
@@ -17,6 +17,8 @@ import {
 //    sessionStorage 时间闸限制最小刷新间隔，杜绝死循环。
 // 不清理任何 IDB / localStorage / 用户缓存。
 // ─────────────────────────────────────────────────────────────
+// upgrade-test round A（4.5.1 三轮真升级测试用构建标记，随测试轮换）
+
 
 const RELOAD_GUARD_KEY = "pwa-reload-guard-v1";
 const MIN_RELOAD_INTERVAL_MS = 15_000;

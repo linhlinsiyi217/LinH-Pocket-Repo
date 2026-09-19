@@ -1,22 +1,54 @@
 // ─────────────────────────────────────────────────────────────
-// PWA Service Worker —— 版本 / 更新 / 接管策略（Task 4.5）
+// PWA Service Worker —— 版本 / 更新 / 接管策略（Task 4.5 / 4.5.1）
 //
-// 【bump 规则】以下任一情况必须把 CACHE_VERSION 数字 +1（v13 → v14 …）：
+// 【bump 规则】以下任一情况必须把 CACHE_VERSION 数字 +1（v14 → v15 …）：
 //   1. 正式发版（Vercel 生产构建）；
 //   2. 本文件缓存策略（预缓存清单 / 导航策略 / 静态策略）发生变更。
-// activate 时仅删除「不属于当前版本前缀」的 Cache Storage；
+//
+// 【版本保留（4.5.1 核心策略）】activate 只删除「当前代 −2 及更老」的缓存，
+//   始终保留当前代 + 上一代（最多两代，不永久堆积）。原因：skipWaiting +
+//   clients.claim 会让新 SW 立即接管仍在运行旧 bundle 的旧 document，
+//   旧页面此后仍可能懒加载旧 hash chunk —— 若 activate 立即删上一代缓存，
+//   这些请求会落到网络，而旧 hash 已随部署从服务器消失 → ChunkLoadError。
+//   保留上一代后，旧页面请求经全局 caches.match 在上一代缓存命中，
+//   从根上消除「旧 document + 新 SW + 旧缓存已删」的瞬时错配。
+//
+// 【install 关键性】"/" 快照是离线冷启动的最小 App Shell，属关键资源：
+//   重试仍失败则本次 install 失败（浏览器稍后自动重试，旧 SW 继续服务，
+//   不会出现「假成功」的残缺离线壳）；manifest/图标为可选资源，允许失败。
+//
 // 绝不触碰 IndexedDB / localStorage / sessionStorage（用户数据零清理）。
 // ─────────────────────────────────────────────────────────────
-const CACHE_VERSION = "ai-phone-pwa-v13";
+const CACHE_VERSION = "ai-phone-pwa-v14";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
-const PRECACHE_URLS = [
-  "/",
+// 关键资源：离线 App Shell（失败 → install 失败，交还旧 SW，稍后自动重试）
+const PRECACHE_CRITICAL_URLS = ["/"];
+// 可选资源：PWA 元数据与图标（失败不阻断升级）
+const PRECACHE_OPTIONAL_URLS = [
   "/manifest.json",
   "/icon-192.png",
   "/icon-512.png",
 ];
+
+// 关键资源预缓存：cache:"reload" 绕过 HTTP 缓存确保拿到当前部署的 HTML；
+// 每项最多重试 2 次，仍失败则抛错让 install 整体失败。
+async function precacheCritical(cache) {
+  for (const url of PRECACHE_CRITICAL_URLS) {
+    let lastError = null;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        await cache.add(new Request(url, { cache: "reload" }));
+        lastError = null;
+        break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (lastError) throw lastError;
+  }
+}
 
 // 导航网络超时：超过该时长且本地有可用快照时先回落快照，避免弱网长挂起；
 // 本地没有快照时继续等待真实网络（不中断请求）。
@@ -25,11 +57,14 @@ const NAVIGATION_TIMEOUT_MS = 4500;
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(STATIC_CACHE)
-      // 单项失败（弱网/离线安装）不阻断新 SW install → activate，
-      // 缺的 "/" 快照由 activate 阶段补拉，离线兜底仍可走旧快照。
-      .then((cache) => Promise.allSettled(
-        PRECACHE_URLS.map((url) => cache.add(url))
-      ))
+      // 关键资源用 Promise.all（失败 → install 失败，旧 SW 继续服务）；
+      // 可选资源用 Promise.allSettled（单项失败不阻断新 SW install → activate）。
+      .then((cache) => Promise.all([
+        precacheCritical(cache),
+        Promise.allSettled(
+          PRECACHE_OPTIONAL_URLS.map((url) => cache.add(new Request(url, { cache: "reload" })))
+        ),
+      ]))
       .then(() => self.skipWaiting())
   );
 });
@@ -42,15 +77,29 @@ self.addEventListener("message", (event) => {
   }
 });
 
+// 从缓存名解析代数：ai-phone-pwa-v13-static → 13；非本项目管理的缓存返回 NaN。
+function cacheGenerationOf(key) {
+  const match = key.match(/^ai-phone-pwa-v(\d+)-/);
+  return match ? Number(match[1]) : NaN;
+}
+
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    // 只清旧版本前缀缓存：旧 hash chunk / 旧运行时缓存随版本安全淘汰。
+    // 只淘汰「当前代 −2 及更老」的缓存：保留上一代供仍在运行的旧 document
+    // 懒加载旧 hash chunk 命中（详见文件头【版本保留】）；下下次升级时自然淘汰，
+    // 最多同时存在两代，不永久堆积。非本项目命名的缓存一律不动。
     caches.keys()
-      .then((keys) => Promise.all(
-        keys
-          .filter((key) => !key.startsWith(CACHE_VERSION))
-          .map((key) => caches.delete(key))
-      ))
+      .then((keys) => {
+        const currentGeneration = cacheGenerationOf(CACHE_VERSION);
+        return Promise.all(
+          keys
+            .filter((key) => {
+              const generation = cacheGenerationOf(key);
+              return !Number.isNaN(generation) && generation < currentGeneration - 1;
+            })
+            .map((key) => caches.delete(key))
+        );
+      })
       // 刷新预缓存的 "/" 快照：它是离线导航的最终兜底，若停留在旧部署版本，
       // 引用的旧 hash CSS/JS 已 404，会渲染出无样式页面。失败（离线）则保留
       // install 阶段刚拿到的快照。
@@ -120,9 +169,15 @@ async function networkFirst(request) {
 // 未命中且网络失败（旧 hash 已随部署淘汰）→ 由客户端 ChunkLoadError
 // 一次性 reload 策略兜底（见 components/pwa-registrar.tsx），不让用户白屏。
 async function cacheFirst(request) {
-  const cache = await caches.open(RUNTIME_CACHE);
-  const cached = await cache.match(request);
+  // 全局匹配（当前代 + 保留的上一代）：新 SW 接管旧 document 后，旧页面
+  // 懒加载的旧 hash chunk 在当前代必然未命中，命中点在上一代缓存 ——
+  // 这是消除「升级窗口跨版本 ChunkLoadError」的关键路径。
+  const cached = await caches.match(request);
   if (cached) return cached;
+  // 兼容旧版本以剥离 query 的 pathname 为键写入的运行时条目
+  const cachedLoose = await caches.match(request, { ignoreSearch: true });
+  if (cachedLoose) return cachedLoose;
+  const cache = await caches.open(RUNTIME_CACHE);
   const response = await fetch(request);
   if (response.ok) cache.put(request, response.clone());
   return response;
