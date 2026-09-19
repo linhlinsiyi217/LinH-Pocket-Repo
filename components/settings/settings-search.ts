@@ -197,20 +197,27 @@ export const SETTINGS_SEARCH_INDEX: SettingsSearchEntry[] = [
 ];
 
 // page+tab 去重（同一子页可被多个关键词命中，结果只出现一次）
+// 排序：标题命中 > 副标题命中 > 关键词命中；同级保持索引顺序（稳定排序）。
 export function searchSettings(query: string): SettingsSearchEntry[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
   const seen = new Set<string>();
-  const hits: SettingsSearchEntry[] = [];
+  const hits: Array<{ entry: SettingsSearchEntry; tier: number }> = [];
   for (const entry of SETTINGS_SEARCH_INDEX) {
-    const haystack = [entry.title, entry.desc, ...entry.keywords].join("\n").toLowerCase();
-    if (haystack.includes(q)) {
+    const title = entry.title.toLowerCase();
+    const desc = entry.desc.toLowerCase();
+    const keywordHit = entry.keywords.some(k => k.toLowerCase().includes(q));
+    let tier = -1;
+    if (title.includes(q)) tier = 0;
+    else if (desc.includes(q)) tier = 1;
+    else if (keywordHit) tier = 2;
+    if (tier >= 0) {
       const key = `${entry.page}:${entry.tab ?? ""}`;
       if (!seen.has(key)) {
         seen.add(key);
-        hits.push(entry);
+        hits.push({ entry, tier });
       }
     }
   }
-  return hits;
+  return hits.sort((a, b) => a.tier - b.tier).map(h => h.entry);
 }
