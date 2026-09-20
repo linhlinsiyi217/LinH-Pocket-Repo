@@ -1,21 +1,21 @@
 "use client";
 
 /* ═══════════════════════════════════════════════════════════
-   T6.5 Settings 共享原语（PREVIEW 版）
-   visual 确认通过后迁移到 components/settings 或 components/ui
-   供设置首页 / 搜索 / 通知与提醒 / 全部二级页复用。
+   Pearl Settings 共享原语(preview + production 共用)
+   - 由 T6.5 Preview 确认通过后迁移自 components/settings-preview/
+   - 供设置首页 / 搜索 / 通知与提醒 / 显示与亮度 / 二级聚合页复用
 
-   结构契约（验收点 R6）：
+   结构契约(验收点 R6):
    .ps-scroll
-     .ps-section-title（可选）
+     .ps-section-title(可选)
      .ps-group                 ← 一个 section 才是一块 Pearl Glass 容器
-       .ps-account / .ps-row  ← section 内连续标准 row（不独立浮起）
+       .ps-account / .ps-row  ← section 内连续标准 row(不独立浮起)
    ═══════════════════════════════════════════════════════════ */
 
 import type { CSSProperties, ReactNode } from "react";
 import { PearlSymbol, PearlSymbolTile, type PearlSymbolName, type PearlSymbolTone } from "@/components/ui/pearl-symbol";
 
-/* ── 设备外框 / 屏幕 / 状态栏 ── */
+/* ── 设备外框 / 屏幕 / 状态栏(preview 专用,production 用 .page-shell token scope) ── */
 
 export function PearlScreen({
   colorMode,
@@ -25,7 +25,7 @@ export function PearlScreen({
 }: {
   colorMode: "light" | "dark";
   children: ReactNode;
-  /** 本地外观令牌演示（preview 滑杆写入；production 由 Bridge 提供） */
+  /** 本地外观令牌演示(preview 滑杆写入;production 由 Bridge 提供) */
   screenStyle?: CSSProperties;
   enterKey?: string;
 }) {
@@ -88,7 +88,7 @@ export function SettingsRow({
   showChevron?: boolean;
   onClick?: () => void;
   static?: boolean;
-  /** 右侧自定义内容（优先于 value/chevron），如开关 */
+  /** 右侧自定义内容(优先于 value/chevron),如开关 */
   trailing?: ReactNode;
 }) {
   const content = (
@@ -233,7 +233,7 @@ export function SettingsSearchBar({
   );
 }
 
-/* ── 二级页导航栏 ── */
+/* ── 二级页导航栏(preview 用;production 用 PageShell) ── */
 
 export function SettingsNavBar({
   title,
@@ -258,7 +258,7 @@ export function SettingsNavBar({
   );
 }
 
-/* ── 搜索结果 row（symbol + 标题 + 路径副标题 + chevron） ── */
+/* ── 搜索结果 row(symbol + 标题 + 路径副标题 + chevron) ── */
 
 export function SettingsSearchRow({
   symbol,

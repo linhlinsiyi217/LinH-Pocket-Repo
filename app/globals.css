@@ -29,6 +29,8 @@
 @import "../styles/pearl-glass.css";
 /* 全局日/夜间模式与主色调反色层（叠加在主题引擎之上，不破坏 data-* 主题） */
 @import "../styles/color-mode.css";
+/* T6.5 Pearl Settings 视觉系统（preview + production 共用；ps-* 前缀不污染既有类名） */
+@import "../styles/settings-preview.css";
 
 @theme {
   /* 间距 (4px 基准) */

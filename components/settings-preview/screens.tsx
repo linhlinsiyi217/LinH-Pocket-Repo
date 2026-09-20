@@ -25,7 +25,7 @@ import {
   SettingsSearchRow,
   SettingsSectionTitle,
   SettingsToggleRow,
-} from "./pearl-settings";
+} from "@/components/settings/pearl-settings";
 
 /* ── 新 IA（A1-A5）：preview 分组定义 ── */
 

@@ -1,13 +1,14 @@
 /* ═══════════════════════════════════════════════════════════
-   T6.5 Settings Visual Rebuild — PREVIEW 视觉系统
-   仅用于 /preview-settings 视觉确认；确认后再迁移 production。
+   T6.5 Pearl Settings 视觉系统（preview + production 共用）
+   - /preview-settings 视觉确认稿
+   - 正式 Settings（components/phone-settings-app.tsx + PageShell）
    所有类统一 ps- 前缀，不覆盖、不复用任何既有 class。
 
    令牌来源：
    - 基础色板 / blur / radius / shadow 复用 styles/pearl-glass.css 的 --pg-*
    - 外观运行时变量 --pearl-glass-strength 由 Appearance Bridge 全局提供；
-     preview 屏在本地用滑杆演示 token → 全玻璃面联动（production 阶段
-     由 Bridge 全局写入，不维护第二套）。
+     preview 屏在 .ps-screen.phone-shell 本地用滑杆演示 token → 全玻璃面联动；
+     production 在 .page-shell 上读取同一组 --pearl-glass-strength（由 Bridge 写入）。
    ═══════════════════════════════════════════════════════════ */
 
 /* ── Gallery 工作台（仅宽屏预览页外壳，非 App 内样式） ── */
@@ -533,3 +534,54 @@
   .ps-row:active, .ps-account:active, .ps-chip:active, .ps-btn:active { transform: none; }
   .ps-screen-enter { animation: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   Production Settings token scope
+   - 正式 Settings 通过 PageShell 渲染（.page-shell 根类），
+     不需要 preview 的设备外框 .ps-screen.phone-shell，但需要
+     同一套 Pearl Glass token 才能让 .ps-group/.ps-row 正确取色。
+   - 仅定义变量，不写几何/背景，避免覆盖 PageShell 既有样式。
+   - 文字色复用 var(--c-text)/var(--c-text-secondary)，与
+     styles/pearl-glass.css + styles/color-mode.css 的暗色作用域同源。
+   ═══════════════════════════════════════════════════════════ */
+.page-shell {
+  --ps-strength: var(--pearl-glass-strength, 0.65);
+  --ps-border-alpha: 1;
+  --ps-shadow-strength: 1;
+  --ps-radius: 20px;
+  --ps-fg: var(--c-text, #000000);
+  --ps-fg-secondary: var(--c-text-secondary, #6d6d72);
+  --ps-group-bg: color-mix(in oklab, #ffffff calc(50% + var(--ps-strength) * 24%), transparent);
+  --ps-group-border: rgba(60, 60, 67, calc(0.12 * var(--ps-border-alpha)));
+  --ps-separator: rgba(60, 60, 67, calc(0.1 * var(--ps-border-alpha)));
+  --ps-highlight: rgba(255, 255, 255, 0.72);
+  --ps-tile-bg: rgba(60, 60, 67, 0.88);
+  --ps-tile-fg: #ffffff;
+  --ps-track: rgba(120, 120, 128, 0.2);
+  --ps-search-bg: rgba(118, 118, 128, 0.12);
+  --ps-shadow:
+    0 2px 6px rgba(0, 0, 0, calc(0.04 * var(--ps-shadow-strength))),
+    0 10px 28px rgba(0, 0, 0, calc(0.06 * var(--ps-shadow-strength)));
+}
+[data-color-mode="dark"] .page-shell {
+  --ps-fg: var(--c-text, #f5f5f7);
+  --ps-fg-secondary: #aeb2b8;
+  --ps-group-bg: color-mix(in oklab, #202022 calc(46% + var(--ps-strength) * 26%), transparent);
+  --ps-group-border: rgba(255, 255, 255, calc(0.1 * var(--ps-border-alpha)));
+  --ps-separator: rgba(84, 84, 88, calc(0.65 * var(--ps-border-alpha)));
+  --ps-highlight: rgba(255, 255, 255, 0.08);
+  --ps-tile-bg: rgba(235, 235, 240, 0.92);
+  --ps-tile-fg: #1c1c1e;
+  --ps-track: rgba(120, 120, 128, 0.32);
+  --ps-search-bg: rgba(118, 118, 128, 0.24);
+}
+
+/* ── 正式 Settings 首页内容容器（与 .ps-scroll 等价的滚动层） ── */
+.page-body > .settings-pearl-scroll {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px 16px calc(48px + env(safe-area-inset-bottom, 0px));
+  scrollbar-width: none;
+}
+.settings-pearl-scroll::-webkit-scrollbar { display: none; }
