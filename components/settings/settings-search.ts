@@ -75,6 +75,12 @@ export const SETTINGS_SEARCH_INDEX: SettingsSearchEntry[] = [
     keywords: ["资源", "资源库", "漫卷", "立绘", "场景", "素材", "vn", "assets"],
   },
   {
+    page: "worldResources",
+    title: "全局资源",
+    desc: "不属任何世界的资源与素材（数据与存储分组入口）",
+    keywords: ["全局资源", "全局", "无世界", "未分类资源", "global"],
+  },
+  {
     page: "mascot",
     title: "AI 与全局助手",
     desc: "小淮宝与工坊的助手能力",

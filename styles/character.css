@@ -1575,3 +1575,49 @@
 
 /* 关系标签在编辑模式下可点（剪断关系） */
 .wt-line-label-editable { cursor: pointer; }
+
+/* ═══ 角色详情六组中文化分组标题（T6：加壳重组，不改既有 DOM/class） ═══ */
+/* 仅作 hairline + 中文标题视觉边界；不破坏 char-archive-frame 现有嵌套        */
+.char-archive-group-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 6px;
+  padding-top: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--c-panel-border, #e0e0e0) 80%, transparent);
+  font-size: calc(11px * var(--app-text-scale, 1));
+  letter-spacing: 1px;
+  color: var(--c-text, #1c1c1e);
+  opacity: 0.78;
+}
+.char-archive-group-title-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--c-text, #1c1c1e) 12%, transparent);
+  color: var(--c-text, #1c1c1e);
+  font-size: calc(10px * var(--app-text-scale, 1));
+  font-weight: 700;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.char-archive-group-title-text {
+  font-weight: 600;
+  letter-spacing: 1.5px;
+}
+.char-archive-group-title--with-action {
+  gap: 10px;
+}
+.char-archive-group-title--with-action .char-archive-btn {
+  margin-left: auto;
+  font-size: calc(10px * var(--app-text-scale, 1));
+  padding: 4px 10px;
+  opacity: 0.85;
+}
+/* 非编辑模式且非已存在角色（新建空档）时，组标题弱化避免空骨架感 */
+.char-archive-frame > .char-archive-group-title:first-of-type {
+  margin-top: 4px;
+}

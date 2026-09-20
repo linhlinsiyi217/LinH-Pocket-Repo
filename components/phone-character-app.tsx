@@ -2214,6 +2214,12 @@ function CharArchiveView({
       <div className="char-archive-frame">
         <div className="char-archive-stamp">CLASSIFIED</div>
 
+        {/* ① 基础信息：名称 / 别名(WeChat ID) / 所属世界 / 类型(tags) / 头像·立绘 */}
+        <div className="char-archive-group-title" data-group="basic">
+          <span className="char-archive-group-title-num">①</span>
+          <span className="char-archive-group-title-text">基础信息</span>
+        </div>
+
         <div className="char-archive-header">
           <div>
             <div className="char-archive-title">{isEditing ? "EDITING ARCHIVE" : "ARCHIVAL\nINFORMATION"}</div>
@@ -2378,6 +2384,14 @@ function CharArchiveView({
           </div>
         </div>
 
+        {/* ⑤ 记忆与资料：立绘素材 / 取景 / 比例·尺寸（版本快照入口在右上角历史按钮） */}
+        {isEditing && (
+          <div className="char-archive-group-title" data-group="memory">
+            <span className="char-archive-group-title-num">⑤</span>
+            <span className="char-archive-group-title-text">记忆与资料</span>
+          </div>
+        )}
+
         {isEditing && (
           <div className="char-wall-settings">
             <div className="char-wall-settings-options">
@@ -2454,6 +2468,12 @@ function CharArchiveView({
             </div>
           </div>
         )}
+
+        {/* ② 核心人设：人物简介(persona) / 性格特点(personality) / 简量人设(briefPersona) */}
+        <div className="char-archive-group-title" data-group="persona">
+          <span className="char-archive-group-title-num">②</span>
+          <span className="char-archive-group-title-text">核心人设</span>
+        </div>
 
         {/* Persona Section (Full Width) */}
         <div className="char-archive-text-section border-b-0">
@@ -2541,6 +2561,23 @@ function CharArchiveView({
           )}
 
         </div>
+
+        {/* ⑥ 高级：版本历史 / 配置绑定 / 模型适配（仅挂现有能力入口，不造不存在的字段） */}
+        {/* ③ 关系 / ④ 对话与扮演：本页无对应持久化字段，按规格不渲染假表单；关系编辑在画布拉线 */}
+        {isExisting && !isEditing && (
+          <div className="char-archive-group-title char-archive-group-title--with-action" data-group="advanced">
+            <span className="char-archive-group-title-num">⑥</span>
+            <span className="char-archive-group-title-text">高级</span>
+            <button
+              type="button"
+              className="char-archive-btn"
+              onClick={openVersionHistory}
+              aria-label="角色卡历史版本"
+            >
+              版本历史 · V{getCharacterCurrentVersion(char.id)}
+            </button>
+          </div>
+        )}
 
         <div className="char-archive-actions">
           {!dummy && confirmDelete ? (

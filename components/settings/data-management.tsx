@@ -86,6 +86,8 @@ type ConfirmRequest =
 
 type DataManagementProps = {
   onNotice?: (message: string) => void;
+  /** T6 TR-6.5：深链 tab="export" 时滚动定位到导出区块；其他值忽略。 */
+  deepLinkTab?: string;
 };
 
 const ALL_MODULE_IDS = DATA_MODULES.map((module) => module.id);
@@ -278,7 +280,7 @@ function buildRestartMessage(summary: string): string {
   return `${summary}\n\n数据已经写进本机，但当前页面还在用重启前的旧缓存运行。${howTo}\n\n在重启之前继续使用，可能让旧缓存把刚导入的数据重新覆盖掉。`;
 }
 
-export function DataManagement({ onNotice }: DataManagementProps) {
+export function DataManagement({ onNotice, deepLinkTab }: DataManagementProps) {
   const [snapshot, setSnapshot] = useState<DataSnapshot | null>(null);
   const [selectedExportModules, setSelectedExportModules] = useState<DataModuleId[]>(ALL_MODULE_IDS);
   const [selectedImportModules, setSelectedImportModules] = useState<DataModuleId[]>([]);
@@ -292,6 +294,21 @@ export function DataManagement({ onNotice }: DataManagementProps) {
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const [persistSupported, setPersistSupported] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  // TR-6.5：导出/导入区块定位锚点；深链 tab="export" 时滚动到此。
+  const exportImportSectionRef = useRef<HTMLDivElement | null>(null);
+
+  // TR-6.5：深链 tab="export" 时滚动定位到导出区块并短暂高亮。
+  useEffect(() => {
+    if (deepLinkTab !== "export") return;
+    const el = exportImportSectionRef.current;
+    if (!el) return;
+    const raf = requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      el.classList.add("data-section--deep-link-highlight");
+      setTimeout(() => el.classList.remove("data-section--deep-link-highlight"), 1800);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [deepLinkTab]);
 
   const [cloudConfig, setCloudConfig] = useState<CloudBackupConfig>(DEFAULT_CLOUD_BACKUP_CONFIG);
   const [cloudBackingUp, setCloudBackingUp] = useState(false);
@@ -743,7 +760,7 @@ export function DataManagement({ onNotice }: DataManagementProps) {
         </div>
       </div>
 
-      <div className="data-section">
+      <div className="data-section" ref={exportImportSectionRef} data-deep-link="export">
         <DataSectionTitle>Export & Import</DataSectionTitle>
         <div className="menu-group">
           <div className="menu-item data-readonly-item">

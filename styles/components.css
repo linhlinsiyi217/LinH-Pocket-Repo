@@ -2559,6 +2559,19 @@
   gap: 24px;
 }
 
+/* TR-6.5：深链 tab="export" 时短暂高亮导出区块（1.8s） */
+.data-management-menu .data-section--deep-link-highlight {
+  outline: 2px solid color-mix(in srgb, var(--c-text, #1c1c1e) 38%, transparent);
+  outline-offset: 4px;
+  border-radius: 10px;
+  animation: data-section-deep-link-flash 1.8s ease-out;
+}
+@keyframes data-section-deep-link-flash {
+  0%   { background-color: color-mix(in srgb, var(--c-text, #1c1c1e) 8%, transparent); }
+  60%  { background-color: color-mix(in srgb, var(--c-text, #1c1c1e) 4%, transparent); }
+  100% { background-color: transparent; }
+}
+
 .data-management-menu .data-cleanup-section {
   gap: 12px;
 }

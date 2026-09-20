@@ -148,6 +148,7 @@ const SETTINGS_GROUPS: SettingsGroup[] = [
         items: [
             { page: "data", label: "数据与存储", desc: "本地数据管理", iconColor: BINDING_ACCENTS.api, glass: "data" },
             { page: "data", tab: "export", label: "导入与导出", desc: "备份、迁移与恢复", iconColor: BINDING_ACCENTS.worldBook, lucide: ArrowLeftRight },
+            { page: "worldResources", label: "全局资源", desc: "不属任何世界的资源与素材", iconColor: CONTENT_APP_ACCENTS.vn, glass: "vn-assets" },
             { page: "cloud", label: "云服务与备份", desc: "备份 / 微信 / 推送", iconColor: BINDING_ACCENTS.api, lucide: CloudUpload },
         ],
     },
@@ -563,7 +564,7 @@ export function PhoneSettingsApp({ onClose, onNotice, initialDeepLink = null, on
             case "regex":
                 return <RegexManager isActive />;
             case "data":
-                return <DataManagement onNotice={onNotice} />;
+                return <DataManagement onNotice={onNotice} deepLinkTab={subTab} />;
             case "binding":
                 return <BindingManager />;
             case "cloud":
