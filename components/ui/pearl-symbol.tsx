@@ -43,6 +43,7 @@ import {
   Mic,
   Moon,
   Palette,
+  PanelTop,
   Pencil,
   Play,
   Search,
@@ -57,6 +58,7 @@ import {
   Upload,
   User,
   Users,
+  Vibrate,
   Volume2,
   Wifi,
   X,
@@ -67,7 +69,7 @@ import type { CSSProperties } from "react";
 export type PearlSymbolName =
   // ── Settings / 系统 ──
   | "settings" | "appearance" | "brightness" | "lock" | "bell"
-  | "sound" | "notification-settings"
+  | "sound" | "notification-settings" | "banner" | "vibrate"
   // ── 角色与世界 ──
   | "character" | "characters" | "world" | "book" | "archive"
   | "resources" | "memory"
@@ -95,6 +97,8 @@ const REGISTRY: Record<PearlSymbolName, LucideIcon> = {
   bell: Bell,
   sound: Volume2,
   "notification-settings": Bell,
+  banner: PanelTop,
+  vibrate: Vibrate,
   character: User,
   characters: Users,
   world: Globe,

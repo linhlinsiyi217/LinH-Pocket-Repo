@@ -233,7 +233,7 @@ type SoundSource = "default" | "none" | "url" | "upload" | "file-manager";
 
 function SoundSourceChips({ value, onChange }: { value: SoundSource; onChange: (s: SoundSource) => void }) {
   const chips: { id: SoundSource; label: string; symbol: PearlSymbolName }[] = [
-    { id: "default", label: "默认", symbol: "settings" },
+    { id: "default", label: "默认", symbol: "check" },
     { id: "none", label: "无", symbol: "close" },
     { id: "url", label: "URL", symbol: "link" },
     { id: "upload", label: "上传", symbol: "upload" },
@@ -292,9 +292,9 @@ function NotificationScreenBody() {
         <SettingsGroup>
           <SettingsToggleRow symbol="bell" title="允许通知" checked={enabled} onChange={setEnabled} />
           <SettingsToggleRow symbol="lock" title="锁屏显示" sub="在锁定屏幕上显示通知" checked={lockScreen} onChange={setLockScreen} />
-          <SettingsToggleRow symbol="background-notifications" title="横幅" sub="解锁使用时从顶部下拉显示" checked={banner} onChange={setBanner} />
+          <SettingsToggleRow symbol="banner" title="横幅" sub="解锁使用时从顶部下拉显示" checked={banner} onChange={setBanner} />
           <SettingsToggleRow symbol="sound" title="声音" checked={soundOn} onChange={setSoundOn} />
-          <SettingsToggleRow symbol="general" title="震动与触感" sub="当前为模拟状态" checked={haptics} onChange={setHaptics} />
+          <SettingsToggleRow symbol="vibrate" title="震动与触感" sub="当前为模拟状态" checked={haptics} onChange={setHaptics} />
         </SettingsGroup>
 
         {/* G2 消息通知音 */}
