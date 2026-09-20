@@ -728,10 +728,9 @@ a {
     --tw-ring-shadow: 0 0 #0000;
   }
 
-  /* 内容层：复用主页同款状态栏，真机按安全区下移；内容区整体避让刘海 */
-  .ios-lock-card .phone-status-bar {
-    top: calc(env(safe-area-inset-top, 0px) + 10px);
-  }
+  /* 内容层：复用主页同款状态栏（top/height/padding/字号/灵动岛全部继承
+     phone-shell.css 默认值，4.5.x 硬性规则：锁屏状态栏几何与主屏完全一致）；
+     safe-area 差异由内容区 padding 承担，不由状态栏自身 top 解决。 */
   .ios-lock-content {
     padding-top: calc(env(safe-area-inset-top, 0px) + 52px);
   }
