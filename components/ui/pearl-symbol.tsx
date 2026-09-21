@@ -26,8 +26,10 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Clock,
   Cloud,
   Cpu,
+  Download,
   Ellipsis,
   Eye,
   Film,
@@ -46,6 +48,8 @@ import {
   PanelTop,
   Pencil,
   Play,
+  Plus,
+  RefreshCw,
   Search,
   Settings as SettingsGear,
   SignalHigh,
@@ -61,6 +65,7 @@ import {
   Vibrate,
   Volume2,
   Wifi,
+  WifiOff,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -84,7 +89,8 @@ export type PearlSymbolName =
   | "battery"
   // ── 通用导航与操作 ──
   | "search" | "back" | "chevron" | "more" | "edit" | "close"
-  | "check" | "warning" | "sparkles"
+  | "check" | "warning" | "sparkles" | "plus"
+  | "update" | "download" | "wifi-off" | "clock"
   // ── 通知媒体（G2-G6） ──
   | "message" | "video" | "link" | "upload" | "folder-open"
   | "play" | "stop" | "trash";
@@ -133,6 +139,11 @@ const REGISTRY: Record<PearlSymbolName, LucideIcon> = {
   check: Check,
   warning: TriangleAlert,
   sparkles: Sparkles,
+  plus: Plus,
+  update: RefreshCw,
+  download: Download,
+  "wifi-off": WifiOff,
+  clock: Clock,
   message: MessageSquare,
   video: Film,
   link: LinkIcon,

@@ -11,8 +11,9 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, createContext, type CSSProperties, type ReactNode } from "react";
 import { Check, KeyRound, Loader2, LogOut, UserCircle, X } from "lucide-react";
 import { ConfirmDialog } from "./ui/modal";
-import { OPEN_CHANGELOG_EVENT, useUpdateUnread } from "./update-notice";
-import { APP_VERSION } from "@/lib/version-info";
+import { useUpdateUnread } from "./update-notice";
+import { SoftwareUpdatePage } from "./settings/software-update";
+import { getDisplayStatus, useUpdateCenter, type UpdateDisplayStatus } from "@/lib/update/update-center-store";
 import { useAccount } from "@/lib/account-context";
 import { isSelfHostedModeEnabled } from "@/lib/self-hosting";
 import { changeAccountPassword } from "@/lib/account-client";
@@ -112,7 +113,8 @@ type SubPage =
     | "sound"                   // 声音与触感（规划中占位）
     | "mascot"                  // AI 与全局助手（T8/T9 落地）
     | "accessibility"           // 辅助功能（真实开关页）
-    | "general";                // 通用（更新日志等）
+    | "general"                 // 通用（软件更新入口等）
+    | "softwareUpdate";         // 通用 → 软件更新（System Update）
 
 /** 旧独立 App 全屏兼容槽页 id（不包设置 PageShell，由旧组件自带壳）。 */
 const LEGACY_SLOT_PAGES = new Set<string>(["appearance", "worldCharacters", "worldResources"]);
@@ -185,7 +187,7 @@ const SETTINGS_GROUPS: SettingsGroup[] = [
         items: [
             { page: "identity", label: "用户身份", desc: "个人信息", symbol: "user" },
             { page: "accessibility", label: "辅助功能", desc: "时间感知 · 悬浮球 · 快捷操作", symbol: "accessibility" },
-            { page: "general", label: "通用", desc: "更新日志与版本", symbol: "general" },
+            { page: "general", label: "通用", desc: "软件更新与版本", symbol: "general" },
             { page: "about", label: "关于", desc: "版本与声明", symbol: "about" },
         ],
     },
@@ -210,7 +212,25 @@ const SEARCH_SYMBOL_FALLBACK: Partial<Record<string, PearlSymbolName>> = {
     mascot: "sparkles",
     lockPasscode: "lock",
     moderation: "settings",
+    softwareUpdate: "update",
 };
+
+/** 「通用 → 软件更新」行的实时状态副标题。 */
+function softwareUpdateSub(status: UpdateDisplayStatus): string {
+    switch (status) {
+        case "unsupported": return "开发模式不可用 · 正式版启用自动更新";
+        case "offline": return "离线 · 恢复网络后检查更新";
+        case "idle":
+        case "checking": return "正在检查更新…";
+        case "downloading": return "正在下载新版本…";
+        case "ready": return "有新版本可用 · 已下载完成";
+        case "waiting-safe": return "等待安全更新 · 任务结束后自动切换";
+        case "activating": return "正在准备更新…";
+        case "error": return "更新失败 · 进入查看重试";
+        case "latest":
+        default: return "已是最新版本";
+    }
+}
 
 /** page → 首页分组面包屑（搜索结果路径副标题） */
 const SEARCH_GROUP_MAP: Record<string, string> = {
@@ -222,6 +242,7 @@ const SEARCH_GROUP_MAP: Record<string, string> = {
     notifications: "连接与模型",
     data: "数据", cloud: "数据",
     identity: "系统", accessibility: "系统", general: "系统", about: "系统",
+    softwareUpdate: "系统",
     presets: "AI 与规则", regex: "AI 与规则", binding: "AI 与规则",
     agentComputer: "角色与世界", toolbox: "系统", moderation: "系统",
     lockPasscode: "外观与系统", mascot: "独立助手",
@@ -511,6 +532,8 @@ export function PhoneSettingsApp({ onClose, onNotice, initialDeepLink = null, on
     const [subTab, setSubTab] = useState<string | undefined>(initialDeepLink?.tab ?? undefined);
     // 更新日志未读白色小圆点（PROJECT_RULES.md 第四章）
     const updateUnread = useUpdateUnread();
+    // 软件更新中心实时状态（通用行副标题）
+    const updateCenter = useUpdateCenter();
     const [subpageTitle, setSubpageTitle] = useState<string | null>(null);
     const [subpageRightActions, setSubpageRightActions] = useState<Record<string, ReactNode>>({});
     const [overrideBack, setOverrideBack] = useState<(() => void) | null>(null);
@@ -600,7 +623,9 @@ export function PhoneSettingsApp({ onClose, onNotice, initialDeepLink = null, on
                     ? "锁屏密码"
                     : currentPage === "notificationsSettings"
                         ? "通知与提醒"
-                        : groupItemById(currentPage)?.label || "设置";
+                        : currentPage === "softwareUpdate"
+                            ? "软件更新"
+                            : groupItemById(currentPage)?.label || "设置";
     const title = subpageTitle || defaultTitle;
 
     const setSubpageRightAction = useCallback((page: string, action: ReactNode | null) => {
@@ -704,18 +729,18 @@ export function PhoneSettingsApp({ onClose, onNotice, initialDeepLink = null, on
         </div>
     );
 
-    // ── 通用（更新日志入口）──
+    // ── 通用（软件更新入口）──
     const renderGeneral = () => (
         <div className="settings-pearl-scroll">
             <SettingsGroup>
                 <SettingsRow
-                    symbol="sparkles"
-                    title="更新日志"
-                    value={`v${APP_VERSION}`}
-                    onClick={() => window.dispatchEvent(new CustomEvent(OPEN_CHANGELOG_EVENT))}
+                    symbol="update"
+                    title="软件更新"
+                    sub={softwareUpdateSub(getDisplayStatus(updateCenter))}
+                    onClick={() => navigate("softwareUpdate")}
                     trailing={
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                            {updateUnread ? <span className="update-dot update-dot-row" aria-label="有新版本" /> : null}
+                            {updateUnread ? <span className="update-dot update-dot-row" aria-label="有未读更新内容" /> : null}
                             <PearlSymbol name="chevron" size={17} strokeWidth={2.2} className="ps-row-chevron" />
                         </span>
                     }
@@ -785,6 +810,8 @@ export function PhoneSettingsApp({ onClose, onNotice, initialDeepLink = null, on
                 return <NotificationsSettingsBody />;
             case "general":
                 return renderGeneral();
+            case "softwareUpdate":
+                return <SoftwareUpdatePage />;
             case "lock":
                 return renderLock();
             case "display":

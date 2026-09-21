@@ -1,19 +1,36 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
+
+import { registerPwaRefreshGuard } from "@/lib/pwa-update-guard";
 import {
-  isPwaRefreshBlocked,
-  registerPwaRefreshGuard,
-} from "@/lib/pwa-update-guard";
+  activateNow,
+  bindRegistration,
+  bindUpdateEngine,
+  checkForUpdates,
+  dismissReadyToast,
+  evaluateAutoActivation,
+  getDisplayStatus,
+  initUpdateCenter,
+  notifyDownloadFailed,
+  notifyDownloadStarting,
+  notifyUpdateReady,
+  notifyWaitingGone,
+  queryControllerVersion,
+  shouldShowReadyToast,
+  useUpdateCenter,
+} from "@/lib/update/update-center-store";
+import { PearlSymbol } from "./ui/pearl-symbol";
 
 // ─────────────────────────────────────────────────────────────
-// PWA 更新链路（Task 4.5 / 4.5.1）
+// PWA 更新链路（Task 4.5 / System Update 引擎）
 // 1. 注册时 updateViaCache:"none" —— sw.js 永远走网络校验，不被 HTTP 缓存拖住；
-// 2. updatefound / statechange / controllerchange 全程监听新版本；
-// 3. 新 SW 接管时：安全（无流式生成/未保存输入）→ 静默 reload 一次；
-//    不安全 → 顶部轻提示「新版本已就绪」由用户手动刷新；
+// 2. updatefound / statechange / controllerchange 全程驱动 update-center-store；
+// 3. 新 SW install 完成后停在 waiting（sw.js 不再无条件 skipWaiting）：
+//    - 自动更新开 + 安全时机 → postMessage SKIP_WAITING，接管后单次 reload；
+//    - 自动更新关 / 安全守卫未放行 → 只显示「新版本已就绪」，等用户操作；
 // 4. 捕获 webpack ChunkLoadError（旧 HTML 引用已淘汰 hash）：
-//    触发 registration.update()，等新 SW 接管后整页 reload 一次；
+//    registration.update() + 显式 SKIP_WAITING，等新 SW 接管后整页 reload 一次；
 //    sessionStorage 时间闸限制最小刷新间隔，杜绝死循环。
 // 不清理任何 IDB / localStorage / 用户缓存。
 // ─────────────────────────────────────────────────────────────
@@ -28,27 +45,11 @@ const MIN_RELOAD_INTERVAL_MS = 15_000;
 const STABLE_LOAD_CLEAR_MS = 12_000;
 const SW_UPDATE_WAIT_MS = 6_000;
 const FOREGROUND_UPDATE_THROTTLE_MS = 10 * 60_000;
+const SAFE_REEVAL_INTERVAL_MS = 20_000;
 
 // webpack 动态 import / Next 懒加载 chunk 失败的典型报错特征
 const CHUNK_FAILURE_RE =
   /loading chunk|loading css chunk|chunkloaderror|error loading dynamically imported module|failed to fetch dynamically imported module/i;
-
-function hasUnsavedDraft(): boolean {
-  // 聚焦中的输入框/textarea/contenteditable 有非空内容 → 视为未保存输入
-  const el = document.activeElement as HTMLElement | null;
-  if (!el) return false;
-  if (el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement) {
-    return el.value.trim().length > 0;
-  }
-  if (el.isContentEditable) {
-    return (el.textContent || "").trim().length > 0;
-  }
-  return false;
-}
-
-function safeToAutoRefresh(): boolean {
-  return !isPwaRefreshBlocked() && !hasUnsavedDraft();
-}
 
 function recentlyReloaded(): boolean {
   try {
@@ -62,25 +63,20 @@ function recentlyReloaded(): boolean {
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 export function PWARegistrar() {
-  const [updateReady, setUpdateReady] = useState(false);
+  const updateState = useUpdateCenter();
   const reloadingRef = useRef(false);
   const chunkHandlingRef = useRef(false);
   const hadControllerRef = useRef(false);
-  const newControllerActiveRef = useRef(false);
-  const waitingWorkerRef = useRef<ServiceWorker | null>(null);
   const lastForegroundUpdateRef = useRef(0);
-  const updateReadyRef = useRef(false);
-  const showUpdateToast = () => {
-    updateReadyRef.current = true;
-    setUpdateReady(true);
-  };
 
   useEffect(() => {
-    if (process.env.NODE_ENV !== "production") return;
-    if (!("serviceWorker" in navigator)) return;
+    const supported = process.env.NODE_ENV === "production" && "serviceWorker" in navigator;
+    initUpdateCenter(supported);
+    if (!supported) return;
 
     let registration: ServiceWorkerRegistration | null = null;
     let disposed = false;
+    let safeReevalTimer = 0;
 
     // 后台追问/定时唤醒/微信桥生成中的会话集合（前台聊天室由 chat-room
     // 自行注册守卫覆盖；这里覆盖聊天室未挂载时的后台生成场景）。
@@ -93,13 +89,17 @@ export function PWARegistrar() {
     };
     const onFollowupFired = (event: Event) => {
       busySessions.delete(sessionIdOf(event));
+      evaluateAutoActivation();
     };
     const onWeixinGenerating = (event: Event) => {
       const detail = (event as CustomEvent).detail;
       const id = sessionIdOf(event);
       if (!id) return;
       if (detail?.generating) busySessions.add(id);
-      else busySessions.delete(id);
+      else {
+        busySessions.delete(id);
+        evaluateAutoActivation();
+      }
     };
     window.addEventListener("followup-started", onFollowupStarted);
     window.addEventListener("followup-fired", onFollowupFired);
@@ -108,10 +108,11 @@ export function PWARegistrar() {
       () => busySessions.size > 0
     );
 
-    const hardReload = () => {
+    // manual=true 仅用于用户显式点击「立即更新」/chunk 自愈的最终跳转，
+    // 无视 15s 时间闸；自动安全时机激活走 manual=false，严格受时间闸保护。
+    const hardReload = (manual: boolean) => {
       if (reloadingRef.current) return;
-      // 上一次自动 reload 刚发生（15s 内）→ 不再刷新，避免失败时死循环
-      if (recentlyReloaded()) return;
+      if (!manual && recentlyReloaded()) return;
       reloadingRef.current = true;
       try {
         sessionStorage.setItem(RELOAD_GUARD_KEY, String(Date.now()));
@@ -120,6 +121,7 @@ export function PWARegistrar() {
       }
       window.location.reload();
     };
+    bindUpdateEngine({ hardReload });
 
     // 页面稳定存活 12s 即视为成功启动，放开下一次 chunk 失败的单次刷新额度
     const stableTimer = window.setTimeout(() => {
@@ -130,21 +132,45 @@ export function PWARegistrar() {
       }
     }, STABLE_LOAD_CLEAR_MS);
 
+    // 跟踪单个 installing/waiting worker 的生命周期
+    const trackWorker = (worker: ServiceWorker, reg: ServiceWorkerRegistration) => {
+      worker.addEventListener("statechange", () => {
+        if (disposed) return;
+        if (
+          worker.state === "installed" &&
+          navigator.serviceWorker.controller &&
+          reg.waiting === worker
+        ) {
+          // 新版本已下载完成并停在 waiting（等待手动或安全时机推进）
+          notifyUpdateReady(worker);
+          return;
+        }
+        if (worker.state === "redundant") {
+          // 被更新的安装顶替：跟新的 installing/waiting；否则是下载失败
+          if (reg.installing) {
+            notifyDownloadStarting();
+            trackWorker(reg.installing, reg);
+          } else if (reg.waiting) {
+            notifyUpdateReady(reg.waiting);
+          } else {
+            notifyWaitingGone();
+            notifyDownloadFailed();
+          }
+        }
+      });
+    };
+
     const onControllerChange = () => {
       // 首次安装（页面加载时没有 controller）：claim 引发的 cc 无需刷新
       if (!hadControllerRef.current) {
         hadControllerRef.current = true;
+        queryControllerVersion(navigator.serviceWorker.controller);
         return;
       }
-      // 新版本已接管当前页
-      newControllerActiveRef.current = true;
-      waitingWorkerRef.current = null;
-      if (safeToAutoRefresh()) {
-        hardReload();
-        return;
-      }
-      // 有进行中生成/未保存输入：不打断，等用户手动刷新
-      showUpdateToast();
+      // 新版本接管当前页：SKIP_WAITING 只可能来自用户手动或安全时机自动流程，
+      // 故这里直接单次硬刷；15s 时间闸兜底防 loop。
+      queryControllerVersion(navigator.serviceWorker.controller);
+      hardReload(false);
     };
 
     const onChunkFailure = async () => {
@@ -169,10 +195,18 @@ export function PWARegistrar() {
           } catch {
             /* 网络波动也继续：下面的单次 reload 同样能自愈 */
           }
+          // sw.js 不再无条件 skipWaiting：自愈路径需显式推进 waiting worker
+          if (reg.waiting) {
+            try {
+              reg.waiting.postMessage({ type: "SKIP_WAITING" });
+            } catch {
+              /* ignore */
+            }
+          }
           await Promise.race([takenOver, wait(SW_UPDATE_WAIT_MS)]);
         }
       } finally {
-        hardReload();
+        hardReload(true);
       }
     };
 
@@ -195,25 +229,34 @@ export function PWARegistrar() {
     window.addEventListener("unhandledrejection", onUnhandledRejection);
     navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
 
+    // 安全时机复算触发器：输入失焦、切后台、回前台、定时轮询
+    const onFocusOut = () => evaluateAutoActivation();
+    document.addEventListener("focusout", onFocusOut);
+
     // 回到前台时（节流）主动查一次部署，覆盖 iOS standalone 的更新节流
     const onVisibility = () => {
       if (document.visibilityState !== "visible") {
-        // 切走时若新版本已接管且当前安全，是天然的无打扰刷新时机
-        if (newControllerActiveRef.current && updateReadyRef.current && safeToAutoRefresh()) {
-          hardReload();
-        }
+        // 切走且无进行中任务：天然的无打扰激活时机
+        evaluateAutoActivation();
         return;
       }
+      evaluateAutoActivation();
       const now = Date.now();
       if (
         registration &&
         now - lastForegroundUpdateRef.current > FOREGROUND_UPDATE_THROTTLE_MS
       ) {
         lastForegroundUpdateRef.current = now;
-        registration.update().catch(() => {});
+        void checkForUpdates();
       }
     };
     document.addEventListener("visibilitychange", onVisibility);
+
+    // 长等待兜底：守卫状态变化不一定有全局事件（各编辑器自行注册的布尔守卫），
+    // 20s 轮询一次，激活判定幂等且只在 ready 态有副作用。
+    safeReevalTimer = window.setInterval(() => {
+      evaluateAutoActivation();
+    }, SAFE_REEVAL_INTERVAL_MS);
 
     const register = () => {
       if (disposed) return;
@@ -222,25 +265,26 @@ export function PWARegistrar() {
         .then((reg) => {
           if (disposed) return;
           registration = reg;
+          bindRegistration(reg);
           hadControllerRef.current = Boolean(navigator.serviceWorker.controller);
+          queryControllerVersion(navigator.serviceWorker.controller);
 
-          const onUpdateFound = () => {
+          // 冷启动时已存在 waiting worker（上次下载完未切换）：直接进入 ready
+          if (reg.waiting) {
+            notifyUpdateReady(reg.waiting);
+          } else if (reg.installing) {
+            notifyDownloadStarting();
+            trackWorker(reg.installing, reg);
+          } else {
+            void checkForUpdates();
+          }
+
+          reg.addEventListener("updatefound", () => {
             const installing = reg.installing;
             if (!installing) return;
-            installing.addEventListener("statechange", () => {
-              if (
-                installing.state === "installed" &&
-                navigator.serviceWorker.controller &&
-                reg.waiting === installing
-              ) {
-                // 新版本停在 waiting（skipWaiting 通常会直接越过；
-                // 某些 WebView 节流下会停在此）→ 提示，用户点刷新时推进
-                waitingWorkerRef.current = installing;
-                showUpdateToast();
-              }
-            });
-          };
-          reg.addEventListener("updatefound", onUpdateFound);
+            notifyDownloadStarting();
+            trackWorker(installing, reg);
+          });
         })
         .catch((error) => {
           console.warn("[PWA] Service worker registration failed:", error);
@@ -256,105 +300,67 @@ export function PWARegistrar() {
     return () => {
       disposed = true;
       window.clearTimeout(stableTimer);
+      window.clearInterval(safeReevalTimer);
       window.removeEventListener("load", register);
       window.removeEventListener("followup-started", onFollowupStarted);
       window.removeEventListener("followup-fired", onFollowupFired);
       window.removeEventListener("weixin-generating", onWeixinGenerating);
       window.removeEventListener("error", onWindowError);
       window.removeEventListener("unhandledrejection", onUnhandledRejection);
+      document.removeEventListener("focusout", onFocusOut);
       document.removeEventListener("visibilitychange", onVisibility);
       navigator.serviceWorker.removeEventListener(
         "controllerchange",
         onControllerChange
       );
       unregisterBusyGuard();
+      bindRegistration(null);
     };
-    // updateReady 仅用于轻提示渲染，刷新逻辑走 ref，无需作为 effect 依赖
+    // 引擎 effect 全程只挂载一次；状态订阅走 store，不作为依赖
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleRefreshClick = () => {
-    // waiting 中的新 SW：先推进激活，再刷新；controllerchange 监听会兜底
-    try {
-      waitingWorkerRef.current?.postMessage({ type: "SKIP_WAITING" });
-    } catch {
-      /* ignore */
-    }
-    reloadingRef.current = false; // 用户显式操作，无视时间闸
-    try {
-      sessionStorage.setItem(RELOAD_GUARD_KEY, String(Date.now()));
-    } catch {
-      /* ignore */
-    }
-    window.location.reload();
-  };
-
-  if (!updateReady) return null;
+  const display = getDisplayStatus(updateState);
+  if (!shouldShowReadyToast(updateState)) return null;
+  const waitingSafe = display === "waiting-safe";
 
   return (
     <div
       role="dialog"
       aria-live="polite"
       aria-label="应用更新提示"
-      style={{
-        position: "fixed",
-        left: "50%",
-        bottom: "max(20px, env(safe-area-inset-bottom))",
-        transform: "translateX(-50%)",
-        zIndex: 2147483000,
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        maxWidth: "calc(100vw - 32px)",
-        padding: "10px 12px",
-        borderRadius: 16,
-        background: "rgba(28, 28, 30, 0.82)",
-        WebkitBackdropFilter: "blur(18px)",
-        backdropFilter: "blur(18px)",
-        color: "#fff",
-        fontSize: 13,
-        lineHeight: 1.35,
-        boxShadow: "0 8px 30px rgba(0,0,0,0.28)",
-      }}
+      className="su-ready-toast"
     >
-      <span style={{ flex: "1 1 auto", whiteSpace: "normal" }}>
-        新版本已就绪，刷新后生效
+      <span className="su-ready-icon" aria-hidden>
+        {waitingSafe ? (
+          <PearlSymbol name="clock" size={18} strokeWidth={1.9} />
+        ) : (
+          <PearlSymbol name="download" size={18} strokeWidth={1.9} />
+        )}
+      </span>
+      <span className="su-ready-copy">
+        <span className="su-ready-title">
+          {waitingSafe ? "更新将在安全时机完成" : "新版本已就绪"}
+        </span>
+        <span className="su-ready-sub">
+          {waitingSafe
+            ? updateState.blockedReason ?? "有进行中的任务，结束后自动切换"
+            : "新版本已下载完成，点击立即更新切换"}
+        </span>
       </span>
       <button
         type="button"
-        onClick={() => {
-          updateReadyRef.current = false;
-          setUpdateReady(false);
-        }}
-        style={{
-          flex: "0 0 auto",
-          border: "none",
-          background: "transparent",
-          color: "rgba(255,255,255,0.72)",
-          fontSize: 13,
-          padding: "6px 8px",
-          borderRadius: 10,
-          cursor: "pointer",
-        }}
+        className="su-ready-later"
+        onClick={() => dismissReadyToast()}
       >
         稍后
       </button>
       <button
         type="button"
-        onClick={handleRefreshClick}
-        style={{
-          flex: "0 0 auto",
-          border: "none",
-          background: "var(--c-accent, #3c82d2)",
-          color: "#fff",
-          fontSize: 13,
-          fontWeight: 700,
-          padding: "7px 14px",
-          borderRadius: 999,
-          cursor: "pointer",
-        }}
+        className="su-ready-apply"
+        onClick={() => activateNow()}
       >
-        立即刷新
+        立即更新
       </button>
     </div>
   );

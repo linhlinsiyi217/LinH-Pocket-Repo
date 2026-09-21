@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { registerPwaRefreshGuard } from "@/lib/pwa-update-guard";
 import type { Character } from "@/lib/character-types";
 import {
   createCharacter,
@@ -1982,6 +1983,18 @@ function CharArchiveView({
     if (tags.length !== origTags.length || tags.some((t, i) => t !== origTags[i])) return true;
     return false;
   }
+
+  // System Update 安全守卫：角色编辑器有未保存修改时，不允许自动切换 SW 版本。
+  // ref 每次渲染指向最新 isDirty 闭包，守卫只注册一次。
+  const characterDirtyCheckRef = useRef<() => boolean>(() => false);
+  characterDirtyCheckRef.current = isDirty;
+  useEffect(() => registerPwaRefreshGuard(() => {
+    try {
+      return characterDirtyCheckRef.current();
+    } catch {
+      return false;
+    }
+  }), []);
 
   function handleBack() {
     if (isDirty()) {

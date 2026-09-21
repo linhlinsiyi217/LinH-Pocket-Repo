@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { registerPwaRefreshGuard } from "@/lib/pwa-update-guard";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 // CommonMark 的 flanking 规则会让 **「加粗」** 这类紧贴全角标点的写法解析失败
@@ -750,6 +751,19 @@ export function CoCreateApp({ onClose, onNotice }: CoCreateAppProps) {
       || draft.content !== normalizeEditableText(editingChapter.content || "")
       || draft.summary !== normalizeEditableText(editingChapter.summary || "");
   }
+
+  // System Update 安全守卫：世界卷宗章节编辑器存在未保存修改时，
+  // 不允许自动切换 SW 版本（输入中的草稿另由 hasFocusedDraft 兜底）。
+  // ref 每次渲染指向最新闭包，守卫调用时直接读 contenteditable 实时内容。
+  const chapterReaderDirtyCheckRef = useRef<() => boolean>(() => false);
+  chapterReaderDirtyCheckRef.current = hasUnsavedChapterReaderChanges;
+  useEffect(() => registerPwaRefreshGuard(() => {
+    try {
+      return chapterReaderDirtyCheckRef.current();
+    } catch {
+      return false;
+    }
+  }), []);
 
   function leaveChapterReader(target: ChapterReaderExitTarget): void {
     setChapterExitConfirmOpen(false);

@@ -5,6 +5,7 @@
 // 资源可下载或导入（导入时选择目的地）。整体为复古 Windows 风格。
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { registerPwaRefreshGuard } from "@/lib/pwa-update-guard";
 import { hydrateKvDb, kvGet, kvSet, registerKvMigration } from "@/lib/kv-db";
 import { loadCharacters } from "@/lib/character-storage";
 import { loadChatContacts } from "@/lib/chat-storage";
@@ -308,6 +309,9 @@ export function ResourceHubApp({ onClose, onNotice }: { onClose: () => void; onN
         editTitleRef.current?.setMarkup(editEntry.name);
         editDescRef.current?.setMarkup(editEntry.description);
     }, [editEntry]);
+
+    // System Update 安全守卫：资源文件 / 配图正在上传时禁止自动切换 SW 版本
+    useEffect(() => registerPwaRefreshGuard(() => uploading), [uploading]);
 
     const reload = useCallback((activeSource: ResourceHubSource, options?: { purge?: boolean }) => {
         setLoadState("loading");

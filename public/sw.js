@@ -1,9 +1,17 @@
 // ─────────────────────────────────────────────────────────────
-// PWA Service Worker —— 版本 / 更新 / 接管策略（Task 4.5 / 4.5.1）
+// PWA Service Worker —— 版本 / 更新 / 接管策略（Task 4.5 / System Update）
 //
-// 【bump 规则】以下任一情况必须把 CACHE_VERSION 数字 +1（v14 → v15 …）：
+// 【bump 规则】以下任一情况必须把 CACHE_VERSION 数字 +1（v20 → v21 …）：
 //   1. 正式发版（Vercel 生产构建）；
 //   2. 本文件缓存策略（预缓存清单 / 导航策略 / 静态策略）发生变更。
+//
+// 【waiting 接管策略（System Update）】install 成功后不再无条件 skipWaiting：
+//   新 SW 下载 + 预缓存完成后停在 waiting，由页面按更新中心决策推进：
+//   - 用户点「立即更新」：页面 postMessage {type:"SKIP_WAITING"}；
+//   - 自动更新开启且安全时机（无生成/输入/编辑/上传守卫）：同样发消息推进；
+//   - 自动更新关闭：一直停留，当前稳定版本继续服务。
+//   install 失败（关键资源预缓存失败）则新 SW 直接 redundant，旧 SW 继续服务，
+//   天然完成「新版本异常可回退当前可用版本」。
 //
 // 【版本保留（4.5.1 核心策略）】activate 只删除「当前代 −2 及更老」的缓存，
 //   始终保留当前代 + 上一代（最多两代，不永久堆积）。原因：skipWaiting +
@@ -19,7 +27,7 @@
 //
 // 绝不触碰 IndexedDB / localStorage / sessionStorage（用户数据零清理）。
 // ─────────────────────────────────────────────────────────────
-const CACHE_VERSION = "ai-phone-pwa-v19";
+const CACHE_VERSION = "ai-phone-pwa-v20";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -55,6 +63,9 @@ async function precacheCritical(cache) {
 const NAVIGATION_TIMEOUT_MS = 4500;
 
 self.addEventListener("install", (event) => {
+  // 仅预缓存，不 skipWaiting：新 SW 停在 waiting，由页面按更新中心
+  // （用户手动 / 自动更新的安全时机）postMessage 显式推进，保证
+  // 「下载完成但未切换」；预缓存失败则 install 失败，旧 SW 继续服务。
   event.waitUntil(
     caches.open(STATIC_CACHE)
       // 关键资源用 Promise.all（失败 → install 失败，旧 SW 继续服务）；
@@ -65,15 +76,26 @@ self.addEventListener("install", (event) => {
           PRECACHE_OPTIONAL_URLS.map((url) => cache.add(new Request(url, { cache: "reload" })))
         ),
       ]))
-      .then(() => self.skipWaiting())
   );
 });
 
-// 允许客户端在「等待中 SW」场景主动推进（updatefound waiting 分支的兜底）。
+// 客户端消息协议（System Update）：
+// - {type:"SKIP_WAITING"}：用户手动或安全时机自动推进 waiting SW；
+// - {type:"GET_CACHE_VERSION"}：经 MessageChannel port 回传本 SW 缓存代际，
+//   controller / waiting worker 都会应答，页面据此展示当前与待切版本。
 self.addEventListener("message", (event) => {
   const data = event.data;
   if (data === "SKIP_WAITING" || (data && data.type === "SKIP_WAITING")) {
     self.skipWaiting();
+    return;
+  }
+  if (data && data.type === "GET_CACHE_VERSION") {
+    const payload = { type: "CACHE_VERSION", version: CACHE_VERSION };
+    if (event.ports && event.ports[0]) {
+      event.ports[0].postMessage(payload);
+    } else if (event.source) {
+      event.source.postMessage(payload);
+    }
   }
 });
 

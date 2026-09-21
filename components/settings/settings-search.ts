@@ -185,8 +185,14 @@ export const SETTINGS_SEARCH_INDEX: SettingsSearchEntry[] = [
   {
     page: "general",
     title: "通用",
-    desc: "更新日志与版本信息",
+    desc: "软件更新入口与版本信息",
     keywords: ["通用", "更新", "更新日志", "版本", "日志", "changelog", "升级", "general"],
+  },
+  {
+    page: "softwareUpdate",
+    title: "软件更新",
+    desc: "检查更新、立即更新、自动更新与完整更新日志",
+    keywords: ["软件更新", "更新", "升级", "检查更新", "立即更新", "自动更新", "版本", "缓存版本", "构建版本", "service worker", "sw", "pwa", "更新日志"],
   },
   {
     page: "identity",

@@ -14,6 +14,7 @@ import { AppearanceBridgeProvider } from "@/components/appearance-bridge-provide
 import { DesktopShell } from "./desktop-shell";
 import { OfflinePushRevampAnnouncement } from "./offline-push-revamp-announcement";
 import { UpdateNotice } from "./update-notice";
+import { UpdateCompleteToast } from "./update-complete-toast";
 import { useViewportVh } from "@/lib/use-viewport-vh";
 import { MusicProvider } from "@/lib/music-context";
 import { hydrateKvDb, isKvHydrated } from "@/lib/kv-db";
@@ -323,6 +324,7 @@ export function MainApp() {
               />
               <OfflinePushRevampAnnouncement />
               <UpdateNotice />
+              <UpdateCompleteToast />
               <CloudBackupScheduler />
               <RealityBridgeScheduler />
               <MediaMaintenanceScheduler />
